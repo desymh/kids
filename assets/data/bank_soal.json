@@ -1,0 +1,9 @@
+[
+  {
+    "id_pulau": "pulau1",
+    "tahap_kesulitan": 1,
+    "soal": "Apa rukun Islam pertama?",
+    "opsi": ["Syahadat", "Shalat", "Zakat", "Puasa"],
+    "jawaban": "Syahadat"
+  }
+]

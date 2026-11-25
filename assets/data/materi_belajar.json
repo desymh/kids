@@ -1,0 +1,27 @@
+[
+  {
+    "bab": 1,
+    "judul": "Pondasi Islam",
+    "sub": ["Dua Kalimat Syahadat", "6 Rukun Iman", "5 Rukun Islam"]
+  },
+  {
+    "bab": 2,
+    "judul": "Thaharah (Bersuci)",
+    "sub": ["Macam air suci", "3 jenis najis", "Rukun & pembatal wudhu"]
+  },
+  {
+    "bab": 3,
+    "judul": "Ibadah Shalat Fardhu",
+    "sub": ["Syarat sah", "Urutan gerakan & bacaan", "Pembatal shalat"]
+  },
+  {
+    "bab": 4,
+    "judul": "Ibadah Puasa Dasar",
+    "sub": ["Niat puasa", "Doa berbuka", "Sunnah & pembatal puasa"]
+  },
+  {
+    "bab": 5,
+    "judul": "Doa Harian & Adab",
+    "sub": ["Doa makan", "Doa tidur", "Adab anak muslim"]
+  }
+]

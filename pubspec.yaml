@@ -1,0 +1,23 @@
+name: qalbukids
+description: Game Edukasi PAI Dasar QalbuKids
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  audioplayers: ^5.2.1
+  shared_preferences: ^2.2.2
+  flutter_tts: ^3.8.5
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/audio/
+    - assets/data/
+    - assets/images/
+dev_dependencies:
+  flutter_lints: ^5.0.0
