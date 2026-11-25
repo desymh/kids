@@ -1,57 +1,52 @@
-enum ProgressState { locked, unlocked, completed }
+enum LevelState { locked, unlocked, completed }
 
 class ProgressionFSM {
-  final Map<String, ProgressState> _states = {};
+  final Map<String, LevelState> _states = {};
 
-  ProgressState stateOf(String key) => _states[key] ?? ProgressState.locked;
+  LevelState getState(String key) => _states[key] ?? LevelState.locked;
 
   void unlock(String key) {
-    if (_states[key] == ProgressState.locked) {
-      _states[key] = ProgressState.unlocked;
+    if (_states[key] == null || _states[key] == LevelState.locked) {
+      _states[key] = LevelState.unlocked;
     }
   }
 
   void complete(String key, int skor, int nyawa) {
     if (skor >= 60 && nyawa > 0) {
-      _states[key] = ProgressState.completed;
-      // unlock next tahap/pulau
+      _states[key] = LevelState.completed;
     }
   }
 
-  bool canAdvance(int skor, int nyawa) => skor >= 60 && nyawa > 0;
+  bool canAdvance(String key, int skor, int nyawa) {
+    return skor >= 60 && nyawa > 0;
+  }
+
+  void unlockNext(String currentKey, String nextKey, int skor, int nyawa) {
+    if (skor >= 60 && nyawa > 0) {
+      unlock(nextKey);
+    }
+  }
 }
 
 class IbadahSimulationFSM {
-  int _current = 0;
-  int nyawa;
-  int poin;
-  final List<String> sequence;
-  final void Function(String)? onAudio;
+  int _stateIndex = 0;
+  final List<String> steps;
 
-  IbadahSimulationFSM({
-    required this.sequence,
-    this.nyawa = 3,
-    this.poin = 0,
-    this.onAudio,
-  });
+  IbadahSimulationFSM({required this.steps});
 
-  int get current => _current;
-  bool get isComplete => _current >= sequence.length;
+  int get currentState => _stateIndex;
+  bool get isComplete => _stateIndex >= steps.length;
 
-  bool input(String gerakan) {
-    if (_current >= sequence.length) return false;
-    if (gerakan == sequence[_current]) {
-      onAudio?.call(gerakan);
-      poin += 20;
-      _current++;
+  bool validasiLangkah(int langkahDipilih) {
+    if (_stateIndex >= steps.length) return false;
+    if (langkahDipilih == _stateIndex) {
+      _stateIndex++;
       return true;
-    } else {
-      nyawa -= 1;
-      return false;
     }
+    return false;
   }
 
   void reset() {
-    _current = 0;
+    _stateIndex = 0;
   }
 }

@@ -9,11 +9,9 @@ class SimulasiScreen extends StatefulWidget {
 }
 
 class _SimulasiScreenState extends State<SimulasiScreen> {
-  final IbadahSimulationFSM _fsm = IbadahSimulationFSM(
-    sequence: ['niat', 'basuh_tangan', 'berkumur', 'istinsyaq', 'basuh_muka', 'basuh_tangan_kanan', 'basuh_tangan_kiri', 'usap_kepala', 'usap_telinga', 'basuh_kaki'],
-    nyawa: 3,
-    onAudio: (step) {},
-  );
+  final IbadahSimulationFSM _fsm = IbadahSimulationFSM(steps: ['niat', 'basuh_tangan', 'berkumur', 'istinsyaq', 'basuh_muka', 'basuh_tangan_kanan', 'basuh_tangan_kiri', 'usap_kepala', 'usap_telinga', 'basuh_kaki']);
+  int _nyawa = 3;
+  int _poin = 0;
 
   int _selectedIndex = 1;
 
@@ -26,11 +24,12 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
 
   void _onStepTap(int index) {
     setState(() => _selectedIndex = index);
-    final step = steps[index].id;
-    if (!_fsm.input(step)) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Urutan salah! Nyawa: ${_fsm.nyawa}'), backgroundColor: Colors.red));
+    if (!_fsm.validasiLangkah(index)) {
+      _nyawa -= 1;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Urutan salah! Nyawa: $_nyawa'), backgroundColor: Colors.red));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Benar! Poin: ${_fsm.poin}'), backgroundColor: Colors.green));
+      _poin += 20;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Benar! Poin: $_poin'), backgroundColor: Colors.green));
     }
   }
 
@@ -65,7 +64,7 @@ class _SimulasiScreenState extends State<SimulasiScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(3, (i) => Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Icon(Icons.favorite, size: 28, color: i < _fsm.nyawa ? Colors.red[500] : Colors.grey[300]),
+                    child: Icon(Icons.favorite, size: 28, color: i < _nyawa ? Colors.red[500] : Colors.grey[300]),
                   )),
                 ),
               ),

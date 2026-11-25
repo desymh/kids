@@ -1,0 +1,172 @@
+class MateriData {
+  static final List<Map<String, dynamic>> dataBabBelajar = [
+    {
+      'bab': 1,
+      'judul': 'Bab 1: Pondasi Islam',
+      'subjudul': 'Syahadat, Rukun Iman & Rukun Islam',
+      'items': [
+        {
+          'judulKartu': 'Dua Kalimat Syahadat',
+          'teksArab': 'أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللَّهُ وَأَشْهَدُ أَنَّ مُحَمَّدًا رَسُولُ اللَّهِ',
+          'teksLatin': "Ash-hadu an la ilaha illallah wa ash-hadu anna Muhammadan rasulullah",
+          'arti': 'Aku bersaksi tidak ada Tuhan selain Allah dan aku bersaksi Muhammad adalah utusan Allah.',
+          'penjelasanAnak': 'Dua kalimat syahadat adalah pintu masuk Islam. Dengan mengucapkannya dengan hati dan lisan, kita menjadi muslim.',
+        },
+        {
+          'judulKartu': '5 Rukun Islam',
+          'teksArab': 'الإسلام: شهادة، صلاة، زكاة، صوم، حج',
+          'teksLatin': "Al-Islam: Shahadah, Shalat, Zakat, Saum, Hajj",
+          'arti': 'Islam: Syahadat, Shalat, Zakat, Puasa, Haji.',
+          'penjelasanAnak': 'Lima rukun Islam adalah tiang agama. Kita wajib melaksanakannya.',
+        },
+        {
+          'judulKartu': '6 Rukun Iman',
+          'teksArab': 'الإيمان بالله والملائكة والكتب والرسل واليوم الآخر والقدر',
+          'teksLatin': "Iman billah wal malaikah wal kutub war rusul wal yaumil akhir wal qadar",
+          'arti': 'Iman kepada Allah, malaikat, kitab, rasul, hari akhir, dan takdir.',
+          'penjelasanAnak': 'Enam rukun iman wajib diyakini setiap muslim.',
+        },
+        {
+          'judulKartu': 'Mengenal 10 Malaikat & Tugasnya',
+          'teksArab': 'جبريل، ميكائيل، إسرافيل، عزرائيل، مالك، رضوان',
+          'teksLatin': "Jibril, Mikail, Israfil, Izrail, Malik, Ridwan",
+          'arti': 'Jibril, Mikail, Israfil, Izrail, Malik, Ridwan.',
+          'penjelasanAnak': 'Malaikat adalah makhluk Allah yang taat. Masing-masing punya tugas khusus.',
+        },
+      ],
+    },
+    {
+      'bab': 2,
+      'judul': 'Bab 2: Thaharah (Bersuci)',
+      'subjudul': 'Air Suci, 3 Jenis Najis & Wudhu',
+      'items': [
+        {
+          'judulKartu': 'Air Suci Menyucikan',
+          'teksArab': 'الماء الطهور',
+          'teksLatin': "Al-Ma' at-thahur",
+          'arti': 'Air yang suci dan menyucikan.',
+          'penjelasanAnak': 'Air suci seperti air hujan, sumur, sungai, laut bisa dipakai berwudhu.',
+        },
+        {
+          'judulKartu': '3 Jenis Najis & Cara Menyucikannya',
+          'teksArab': 'مخففة، متوسطة، مغلظة',
+          'teksLatin': "Mukhaffafah, Mutawassithah, Mughallazhah",
+          'arti': 'Ringan, sedang, berat.',
+          'penjelasanAnak': 'Najis ringan (mukhaffafah) seperti kencing bayi laki-laki yang hanya minum ASI cukup diperciki air. Najis sedang (mutawassithah) seperti kotoran dan darah dibersihkan hingga hilang warna, bau, dan rasanya. Najis berat (mughallazhah) seperti air liur anjing dibasuh 7 kali dan salah satunya dicampur tanah/debu suci.',
+        },
+        {
+          'judulKartu': '6 Rukun Wudhu',
+          'teksArab': 'نية غسل الوجه غسل اليدين مسح الرأس غسل القدمين tertib',
+          'teksLatin': "Niat, ghasl al-wajh, ghasl al-yadayn, mas'h al-ra's, ghasl al-qadamayn, tertib",
+          'arti': 'Niat, membasuh muka, tangan, mengusap kepala, membasuh kaki, berurutan.',
+          'penjelasanAnak': 'Enam rukun wudhu yang wajib dilakukan saat berwudhu.',
+        },
+        {
+          'judulKartu': '4 Hal yang Membatalkan Wudhu',
+          'teksArab': 'خروج، نوم، مس، لمس',
+          'teksLatin': "Khuruj, naum, mas, lams",
+          'arti': 'Keluar sesuatu, tidur nyenyak, bersentuhan, menyentuh kemaluan.',
+          'penjelasanAnak': 'Wudhu batal jika keluar sesuatu dari qubul/dubur, hilang akal karena tidur nyenyak, bersentuhan kulit laki-laki dan perempuan bukan mahram, atau menyentuh kemaluan dengan telapak tangan bagian dalam.',
+        },
+      ],
+    },
+    {
+      'bab': 3,
+      'judul': 'Bab 3: Ibadah Shalat Fardhu',
+      'subjudul': 'Syarat Sah, Rukun & Bacaan Shalat',
+      'items': [
+        {
+          'judulKartu': 'Shalat 5 Waktu & Jumlah Rakaatnya',
+          'teksArab': 'فجر ٢، ظهر ٤، عصر ٤، مغرب ٣، عشاء ٤',
+          'teksLatin': "Fajr 2, Dzuhur 4, Ashar 4, Maghrib 3, Isya 4",
+          'arti': 'Subuh 2, Dzuhur 4, Ashar 4, Maghrib 3, Isya 4.',
+          'penjelasanAnak': 'Shalat lima waktu dengan jumlah rakaat yang berbeda.',
+        },
+        {
+          'judulKartu': 'Syarat Sah Shalat',
+          'teksArab': 'طهارة، ستر عورة، استقبال قبلة، وقت',
+          'teksLatin': "Thaharah, satr 'awrah, istiqbal qiblah, waqt",
+          'arti': 'Suci, menutup aurat, menghadap kiblat, waktu.',
+          'penjelasanAnak': 'Syarat wajib sebelum shalat: suci dari hadas kecil & besar, suci badan/pakaian/tempat, menutup aurat, menghadap kiblat, dan sudah masuk waktu shalat.',
+        },
+        {
+          'judulKartu': 'Urutan Gerakan & Bacaan Pokok Shalat',
+          'teksArab': 'تكبير، قراءة، ركوع، سجود، جلوس',
+          'teksLatin': "Takbir, qira'ah, ruku', sujud, julus",
+          'arti': 'Takbir, bacaan, rukuk, sujud, duduk.',
+          'penjelasanAnak': 'Gerakan pokok shalat: Niat & Takbiratul Ihram, Membaca Al-Fatihah, Rukuk beserta tasbihnya, I\'tidal, Sujud beserta tasbihnya, Duduk di antara dua sujud, Tahiyat Akhir & Salam.',
+        },
+        {
+          'judulKartu': 'Hal yang Membatalkan Shalat',
+          'teksArab': 'حدث، نطق، أكل، شرب',
+          'teksLatin': "Hadats, nathq, akl, shurb",
+          'arti': 'Hadas, berbicara, makan, minum.',
+          'penjelasanAnak': 'Shalat batal jika berhadas, terkena najis yang tidak dimaafkan, berbicara sengaja, bergerak berturut-turut 3 kali, makan/minum, atau tertawa terbahak-bahak.',
+        },
+      ],
+    },
+    {
+      'bab': 4,
+      'judul': 'Bab 4: Ibadah Puasa Dasar',
+      'subjudul': 'Niat, Sunnah & Pembatal Puasa',
+      'items': [
+        {
+          'judulKartu': 'Pengertian & Niat Puasa Ramadhan',
+          'teksArab': 'نية الصوم من الفجر',
+          'teksLatin': "Niat as-saum min al-fajr",
+          'arti': 'Niat puasa dari fajar.',
+          'penjelasanAnak': 'Puasa adalah menahan diri dari makan, minum, dan hal yang membatalkan mulai terbit fajar hingga terbenam matahari. Niat wajib sebelum fajar.',
+        },
+        {
+          'judulKartu': 'Doa Berbuka Puasa & Sunnah Puasa',
+          'teksArab': 'اللهم لك صمت وعلى رزقك أفطرت',
+          'teksLatin': "Allahumma laka shumtu wa 'ala rizqika aftartu",
+          'arti': 'Ya Allah, untukMu aku berpuasa dan dengan rezekiMu aku berbuka.',
+          'penjelasanAnak': 'Sunnah puasa: mengakhirkan sahur dan menyegerakan berbuka dengan kurma/air.',
+        },
+        {
+          'judulKartu': 'Hal-hal yang Membatalkan Puasa',
+          'teksArab': 'أكل، شرب، جماع',
+          'teksLatin': "Akl, shurb, jim'a",
+          'arti': 'Makan, minum, berhubungan.',
+          'penjelasanAnak': 'Puasa batal jika makan/minum dengan sengaja, muntah dengan sengaja, memasukkan sesuatu ke lubang tubuh yang terbuka dengan sengaja, atau hilang akal/pingsan sepanjang hari.',
+        },
+      ],
+    },
+    {
+      'bab': 5,
+      'judul': 'Bab 5: Doa Harian & Adab Anak Muslim',
+      'subjudul': 'Hafalan Doa & Akhlak Sehari-hari',
+      'items': [
+        {
+          'judulKartu': 'Doa Sebelum & Sesudah Makan',
+          'teksArab': 'بسم الله / الحمد لله',
+          'teksLatin': "Bismillah / Alhamdulillah",
+          'arti': 'Dengan nama Allah / Segala puji bagi Allah.',
+          'penjelasanAnak': 'Dibaca sebelum makan dengan tangan kanan sambil duduk, dan sesudah makan.',
+        },
+        {
+          'judulKartu': 'Doa Sebelum & Bangun Tidur',
+          'teksArab': 'اللهم باسمك أموت وأحيا',
+          'teksLatin': "Allahumma bismika amutu wa ahya",
+          'arti': 'Ya Allah, dengan namaMu aku mati dan hidup.',
+          'penjelasanAnak': 'Dibaca sebelum tidur dan setelah bangun.',
+        },
+        {
+          'judulKartu': 'Doa untuk Kedua Orang Tua',
+          'teksArab': 'رب اغفر لي ولولدي',
+          'teksLatin': "Rabbighfir li waliwalidayya",
+          'arti': 'Ya Tuhanku, ampunilah aku dan kedua orang tuaku.',
+          'penjelasanAnak': 'Doa untuk orang tua, serta adab berbakti kepada orang tua.',
+        },
+        {
+          'judulKartu': 'Doa Masuk & Keluar Masjid',
+          'teksArab': 'اللهم افتح لي أبواب رحمتك / اللهم إني أسألك من فضلك',
+          'teksLatin': "Allahumma iftah li abwaba rahmatika / Allahumma inni as'aluka min fadhlika",
+          'arti': 'Ya Allah, bukakan untukku pintu rahmatMu / Ya Allah, aku meminta karuniaMu.',
+          'penjelasanAnak': 'Dibaca masuk masjid dengan kaki kanan, dan keluar dengan kaki kiri.',
+        },
+      ],
+    },
+  ];
+}

@@ -6,6 +6,7 @@ import 'lencana_screen.dart';
 import 'settings_screen.dart';
 import 'quiz_screen.dart';
 import 'tahapan_screen.dart';
+import 'daily_quiz_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -129,9 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               onMisiTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const QuizScreen(idPulau: 'pulau1', tahap: 1),
-                ),
+                MaterialPageRoute(builder: (_) => const DailyQuizScreen()),
               ),
             ),
             // Tab 1: Lencana

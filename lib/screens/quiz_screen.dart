@@ -27,7 +27,11 @@ class _QuizScreenState extends State<QuizScreen> {
   Future<void> _load() async {
     final raw = await rootBundle.loadString('assets/data/bank_soal.json');
     final bank = jsonDecode(raw) as List;
-    final shuffled = FisherYatesShuffle().stratifiedShuffle(bank, widget.idPulau, widget.tahap);
+    final filtered = bank.where((e) {
+      final m = e as Map;
+      return m['id_pulau'] == widget.idPulau && m['tahap_kesulitan'] == widget.tahap;
+    }).toList();
+    final shuffled = FisherYatesShuffler.shuffle(filtered);
     setState(() => soal = shuffled);
   }
 

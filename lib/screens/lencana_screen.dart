@@ -190,8 +190,11 @@ class _MedalPainter extends CustomPainter {
       final angle = -pi / 2 + i * 2 * pi / 5;
       final outerX = center.dx + radius * cos(angle);
       final outerY = center.dy + radius * sin(angle);
-      if (i == 0) path.moveTo(outerX, outerY);
-      else path.lineTo(outerX, outerY);
+      if (i == 0) {
+        path.moveTo(outerX, outerY);
+      } else {
+        path.lineTo(outerX, outerY);
+      }
       final innerAngle = angle + pi / 5;
       final innerX = center.dx + radius * 0.4 * cos(innerAngle);
       final innerY = center.dy + radius * 0.4 * sin(innerAngle);

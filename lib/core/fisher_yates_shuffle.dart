@@ -1,24 +1,47 @@
 import 'dart:math';
 
-class FisherYatesShuffle {
-  final Random _random = Random();
-
-  List<T> shuffle<T>(List<T> input) {
-    final list = List<T>.from(input);
-    for (int i = list.length - 1; i > 0; i--) {
-      int j = _random.nextInt(i + 1);
-      final temp = list[i];
-      list[i] = list[j];
-      list[j] = temp;
+class FisherYatesShuffler {
+  static List<T> shuffle<T>(List<T> items) {
+    final result = List<T>.from(items);
+    final random = Random();
+    for (int i = result.length - 1; i > 0; i--) {
+      final j = random.nextInt(i + 1);
+      final temp = result[i];
+      result[i] = result[j];
+      result[j] = temp;
     }
-    return list;
+    return result;
   }
 
-  List<T> stratifiedShuffle<T>(List<T> bank, String idPulau, int tahap) {
-    final sub = bank.where((e) {
-      final m = e as Map;
-      return m['id_pulau'] == idPulau && m['tahap_kesulitan'] == tahap;
-    }).toList();
-    return shuffle(sub);
+  static Map<String, dynamic> acakSoalDanOpsi(Map<String, dynamic> soal) {
+    final result = Map<String, dynamic>.from(soal);
+    final opsi = List<String>.from(result['opsi'] as List);
+    final jawabanBenar = result['jawabanBenar'] as int;
+
+    // Fisher-Yates on opsi indices
+    final indices = List<int>.generate(opsi.length, (i) => i);
+    final random = Random();
+    for (int i = indices.length - 1; i > 0; i--) {
+      final j = random.nextInt(i + 1);
+      final temp = indices[i];
+      indices[i] = indices[j];
+      indices[j] = temp;
+    }
+
+    // Reorder opsi
+    final newOpsi = List<String>.generate(opsi.length, (i) => opsi[indices[i]]);
+
+    // Find new jawabanBenar index
+    int newJawabanBenar = 0;
+    for (int i = 0; i < indices.length; i++) {
+      if (indices[i] == jawabanBenar) {
+        newJawabanBenar = i;
+        break;
+      }
+    }
+
+    result['opsi'] = newOpsi;
+    result['jawabanBenar'] = newJawabanBenar;
+    return result;
   }
 }
