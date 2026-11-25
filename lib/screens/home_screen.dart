@@ -650,14 +650,15 @@ class _HomeContent extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // 4. Grid 2x2 Menu Utama (3D Game Style Button)
+          // 4. Grid 2x2 Menu Utama dengan Karakter Santri Besar (Sesuai Desain Blueprint)
           Row(
             children: [
               Expanded(
                 child: _GameMenuCard(
-                  gradient: const [Color(0xFF2F8F83), Color(0xFF217367)],
-                  borderBottomColor: const Color(0xFF144F46),
-                  icon: Icons.menu_book_rounded,
+                  gradient: const [Color(0xFF38A896), Color(0xFF268A7A)],
+                  borderBottomColor: const Color(0xFF14544A),
+                  bannerColor: const Color(0xFF165C52),
+                  imageAsset: 'assets/images/icon_belajar.png',
                   title: 'MENU BELAJAR',
                   subtitle: '5 Bab Materi & Audio',
                   onTap: onBelajarTap,
@@ -666,9 +667,10 @@ class _HomeContent extends StatelessWidget {
               const SizedBox(width: 14),
               Expanded(
                 child: _GameMenuCard(
-                  gradient: const [Color(0xFFE28C4A), Color(0xFFCC722F)],
+                  gradient: const [Color(0xFFF39C48), Color(0xFFE27C24)],
                   borderBottomColor: const Color(0xFF9E4B11),
-                  icon: Icons.map_rounded,
+                  bannerColor: const Color(0xFFB85912),
+                  imageAsset: 'assets/images/icon_game.png',
                   title: 'GAME UJIAN',
                   subtitle: 'Petualangan 6 Pulau',
                   onTap: onPetaTap,
@@ -681,9 +683,10 @@ class _HomeContent extends StatelessWidget {
             children: [
               Expanded(
                 child: _GameMenuCard(
-                  gradient: const [Color(0xFF5A8BB0), Color(0xFF437699)],
-                  borderBottomColor: const Color(0xFF254F65),
-                  icon: Icons.sports_esports_rounded,
+                  gradient: const [Color(0xFF5BA4CB), Color(0xFF428EB7)],
+                  borderBottomColor: const Color(0xFF255877),
+                  bannerColor: const Color(0xFF2C6488),
+                  imageAsset: 'assets/images/icon_wudhu_sholat.jpeg',
                   title: 'SIMULASI PRAKTIK',
                   subtitle: 'Latihan Wudhu & Shalat',
                   onTap: onSimulasiTap,
@@ -692,9 +695,10 @@ class _HomeContent extends StatelessWidget {
               const SizedBox(width: 14),
               Expanded(
                 child: _GameMenuCard(
-                  gradient: const [Color(0xFFD96B6B), Color(0xFFBF4E4E)],
-                  borderBottomColor: const Color(0xFF8F2D2D),
-                  icon: Icons.emoji_events_rounded,
+                  gradient: const [Color(0xFFE87A7A), Color(0xFFD65C5C)],
+                  borderBottomColor: const Color(0xFF943232),
+                  bannerColor: const Color(0xFFA63939),
+                  imageAsset: 'assets/images/icon_pencapaian.png',
                   title: 'KOLEKSI LENCANA',
                   subtitle: '6 Lencana Cantik',
                   onTap: onLencanaTap,
@@ -795,7 +799,8 @@ class _HomeContent extends StatelessWidget {
 class _GameMenuCard extends StatelessWidget {
   final List<Color> gradient;
   final Color borderBottomColor;
-  final IconData icon;
+  final Color bannerColor;
+  final String imageAsset;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
@@ -803,7 +808,8 @@ class _GameMenuCard extends StatelessWidget {
   const _GameMenuCard({
     required this.gradient,
     required this.borderBottomColor,
-    required this.icon,
+    required this.bannerColor,
+    required this.imageAsset,
     required this.title,
     required this.subtitle,
     required this.onTap,
@@ -811,51 +817,109 @@ class _GameMenuCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isJpeg = imageAsset.endsWith('.jpeg') || imageAsset.endsWith('.jpg');
+
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(24),
       child: Container(
-        height: 140,
+        height: 184,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: gradient,
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
-          borderRadius: BorderRadius.circular(22),
-          border: Border(bottom: BorderSide(color: borderBottomColor, width: 4.5)),
+          borderRadius: BorderRadius.circular(24),
+          border: Border(bottom: BorderSide(color: borderBottomColor, width: 5)),
           boxShadow: [
             BoxShadow(
               color: gradient[0].withOpacity(0.35),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
             ),
           ],
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 44, color: Colors.white),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-                letterSpacing: 0.3,
+            // Area Karakter Besar (Mengisi penuh bagian atas kartu sesuai Blueprint)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                child: Center(
+                  child: isJpeg
+                      ? Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.4),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 4,
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: Image.asset(
+                              imageAsset,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        )
+                      : Image.asset(
+                          imageAsset,
+                          fit: BoxFit.contain,
+                          width: double.infinity,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.image_rounded,
+                            size: 48,
+                            color: Colors.white,
+                          ),
+                        ),
+                ),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w600,
-                color: Colors.white70,
+            // Banner Judul Melengkung di Bagian Bawah
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              decoration: BoxDecoration(
+                color: bannerColor.withOpacity(0.92),
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(19)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      letterSpacing: 0.4,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white.withOpacity(0.88),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
           ],
