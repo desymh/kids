@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'kuis_ujian_screen.dart';
+import '../core/fsm_controller.dart';
 import '../core/storage_service.dart';
 
 class TahapanPulauScreen extends StatefulWidget {
@@ -14,7 +15,8 @@ class TahapanPulauScreen extends StatefulWidget {
 class _TahapanPulauScreenState extends State<TahapanPulauScreen> {
   final StorageService _storage = StorageService();
   final List<String> _tahapLabels = ['Tahap 1: Pemula', 'Tahap 2: Dasar', 'Tahap 3: Lanjutan', 'Tahap 4: Ujian Pulau'];
-  Map<int, bool> _unlocked = {};
+  final Map<int, LevelState> _status = {};
+  final Map<int, int> _stars = {};
 
   @override
   void initState() {
@@ -23,20 +25,18 @@ class _TahapanPulauScreenState extends State<TahapanPulauScreen> {
   }
 
   Future<void> _loadStatus() async {
-    for (int i = 1; i <= 4; i++) {
-      final key = 'pulau_${widget.pulauId}_tahap_${i}_unlocked';
-      final unlocked = await _storage.getProgres(key);
-      _unlocked[i] = unlocked;
+    final states = await _storage.getFsmStates();
+    for (var tahap = 1; tahap <= StorageService.stagesPerIsland; tahap++) {
+      final key = ProgressionFSM.stageKey(widget.pulauId, tahap);
+      _status[tahap] = states[key] ?? LevelState.locked;
+      _stars[tahap] = await _storage.getStageStars(widget.pulauId, tahap);
     }
-    if (!(_unlocked[1] ?? false)) {
-      _unlocked[1] = true;
-      await _storage.setProgres('pulau_${widget.pulauId}_tahap_1_unlocked', true);
-    }
+    if (!mounted) return;
     setState(() {});
   }
 
   void _onTahapTap(int tahap) async {
-    if (!(_unlocked[tahap] ?? false)) {
+    if ((_status[tahap] ?? LevelState.locked) == LevelState.locked) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selesaikan tahap sebelumnya dengan skor minimal 60!'), backgroundColor: Colors.red),
       );
@@ -46,7 +46,7 @@ class _TahapanPulauScreenState extends State<TahapanPulauScreen> {
       context,
       MaterialPageRoute(builder: (_) => KuisUjianScreen(pulauId: widget.pulauId, tahap: tahap)),
     );
-    _loadStatus();
+    if (mounted) await _loadStatus();
   }
 
   @override
@@ -66,7 +66,9 @@ class _TahapanPulauScreenState extends State<TahapanPulauScreen> {
           itemCount: 4,
           itemBuilder: (_, i) {
             final tahap = i + 1;
-            final unlocked = _unlocked[tahap] ?? false;
+            final state = _status[tahap] ?? LevelState.locked;
+            final unlocked = state != LevelState.locked;
+            final completed = state == LevelState.completed;
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               child: InkWell(
@@ -89,11 +91,21 @@ class _TahapanPulauScreenState extends State<TahapanPulauScreen> {
                           color: unlocked ? Colors.teal[50] : Colors.grey[300],
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: Icon(unlocked ? Icons.play_arrow : Icons.lock, color: unlocked ? Colors.teal[700] : Colors.grey[500], size: 28),
+                        child: Icon(completed ? Icons.check_circle : (unlocked ? Icons.play_arrow : Icons.lock), color: unlocked ? Colors.teal[700] : Colors.grey[500], size: 28),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
-                        child: Text(_tahapLabels[i], style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: unlocked ? Colors.teal[900] : Colors.grey[500])),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(_tahapLabels[i], style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: unlocked ? Colors.teal[900] : Colors.grey[500])),
+                            if (completed)
+                              Text(
+                                'Selesai · ${_stars[tahap] ?? 0}/3 bintang',
+                                style: TextStyle(fontSize: 12, color: Colors.teal[700]),
+                              ),
+                          ],
+                        ),
                       ),
                     ],
                   ),

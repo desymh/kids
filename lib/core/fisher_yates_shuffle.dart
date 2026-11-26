@@ -1,11 +1,11 @@
 import 'dart:math';
 
 class FisherYatesShuffler {
-  static List<T> shuffle<T>(List<T> items) {
+  static List<T> shuffle<T>(List<T> items, {Random? random}) {
     final result = List<T>.from(items);
-    final random = Random();
+    final activeRandom = random ?? Random();
     for (int i = result.length - 1; i > 0; i--) {
-      final j = random.nextInt(i + 1);
+      final j = activeRandom.nextInt(i + 1);
       final temp = result[i];
       result[i] = result[j];
       result[j] = temp;
@@ -13,35 +13,60 @@ class FisherYatesShuffler {
     return result;
   }
 
-  static Map<String, dynamic> acakSoalDanOpsi(Map<String, dynamic> soal) {
+  static Map<String, dynamic> acakSoalDanOpsi(
+    Map<String, dynamic> soal, {
+    Random? random,
+  }) {
     final result = Map<String, dynamic>.from(soal);
-    final opsi = List<String>.from(result['opsi'] as List);
-    final jawabanBenar = result['jawabanBenar'] as int;
-
-    // Fisher-Yates on opsi indices
-    final indices = List<int>.generate(opsi.length, (i) => i);
-    final random = Random();
-    for (int i = indices.length - 1; i > 0; i--) {
-      final j = random.nextInt(i + 1);
-      final temp = indices[i];
-      indices[i] = indices[j];
-      indices[j] = temp;
+    final rawOptions = (result['opsi'] as List)
+        .map((option) => option.toString().trim())
+        .where((option) => option.isNotEmpty)
+        .toList();
+    final correctIndex = result['jawabanBenar'] as int;
+    if (correctIndex < 0 || correctIndex >= rawOptions.length) {
+      throw ArgumentError('Indeks jawaban benar tidak valid.');
     }
 
-    // Reorder opsi
-    final newOpsi = List<String>.generate(opsi.length, (i) => opsi[indices[i]]);
+    final correctAnswer = rawOptions[correctIndex];
+    final options = <String>[];
+    for (final option in rawOptions) {
+      if (!options.contains(option)) {
+        options.add(option);
+      }
+    }
+    if (options.length != 4 || !options.contains(correctAnswer)) {
+      throw ArgumentError('Setiap soal harus memiliki 4 opsi unik.');
+    }
 
-    // Find new jawabanBenar index
-    int newJawabanBenar = 0;
-    for (int i = 0; i < indices.length; i++) {
-      if (indices[i] == jawabanBenar) {
-        newJawabanBenar = i;
-        break;
+    final indices = shuffle<int>(List<int>.generate(options.length, (i) => i),
+        random: random);
+    final shuffledOptions = indices.map((i) => options[i]).toList();
+    result['opsi'] = shuffledOptions;
+    result['jawabanBenar'] = shuffledOptions.indexOf(correctAnswer);
+    return result;
+  }
+
+  static List<Map<String, dynamic>> acakDaftarSoal(
+    List<Map<String, dynamic>> questions, {
+    Random? random,
+  }) {
+    final activeRandom = random ?? Random();
+    final uniqueQuestions = <Map<String, dynamic>>[];
+    final seenIds = <String>{};
+
+    for (final question in questions) {
+      final id = question['id']?.toString().trim() ??
+          question['pertanyaan']?.toString().trim() ??
+          '';
+      if (id.isNotEmpty && seenIds.add(id)) {
+        uniqueQuestions.add(Map<String, dynamic>.from(question));
       }
     }
 
-    result['opsi'] = newOpsi;
-    result['jawabanBenar'] = newJawabanBenar;
-    return result;
+    final shuffled = shuffle<Map<String, dynamic>>(uniqueQuestions,
+        random: activeRandom);
+    return shuffled
+        .map((question) => acakSoalDanOpsi(question, random: activeRandom))
+        .toList();
   }
 }

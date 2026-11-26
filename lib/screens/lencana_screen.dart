@@ -1,25 +1,51 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import '../models/data_models.dart';
+import '../core/storage_service.dart';
 
-class LencanaScreen extends StatelessWidget {
+class LencanaScreen extends StatefulWidget {
   final bool isEmbedded;
   const LencanaScreen({super.key, this.isEmbedded = false});
 
   @override
+  LencanaScreenState createState() => LencanaScreenState();
+}
+
+class LencanaScreenState extends State<LencanaScreen> {
+  final StorageService _storage = StorageService();
+  List<bool> _badges = List<bool>.filled(StorageService.totalBadges, false);
+  int _totalBintang = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    refresh();
+  }
+
+  Future<void> refresh() async {
+    final badges = await _storage.getLencana();
+    final totalBintang = await _storage.getTotalBintang();
+    if (!mounted) return;
+    setState(() {
+      _badges = badges;
+      _totalBintang = totalBintang;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final badges = [
-      BadgeData('Duta Rukun\nIslam', true, Colors.amber[700]!, Colors.amber[300]!, Colors.red[600]!),
-      BadgeData('Ahli\nThaharah', true, const Color(0xFF0284C7), const Color(0xFFBAE6FD), Colors.red[600]!),
-      BadgeData('Santri Taat\nShalat', false, Colors.grey[500]!, Colors.grey[400]!, Colors.grey[600]!),
-      BadgeData('Pejuang\nRamadhan', false, Colors.grey[500]!, Colors.grey[400]!, Colors.grey[600]!),
-      BadgeData('Anak Shalih\n& Beradab', false, Colors.grey[500]!, Colors.grey[400]!, Colors.grey[600]!),
-      BadgeData('Santri Cilik\nTeladan', false, Colors.grey[500]!, Colors.grey[400]!, Colors.grey[600]!),
+      BadgeData('Duta Rukun\nIslam', _badges[0], Colors.amber[700]!, Colors.amber[300]!, Colors.red[600]!),
+      BadgeData('Ahli\nThaharah', _badges[1], const Color(0xFF0284C7), const Color(0xFFBAE6FD), Colors.red[600]!),
+      BadgeData('Santri Taat\nShalat', _badges[2], Colors.grey[500]!, Colors.grey[400]!, Colors.grey[600]!),
+      BadgeData('Pejuang\nRamadhan', _badges[3], Colors.grey[500]!, Colors.grey[400]!, Colors.grey[600]!),
+      BadgeData('Anak Shalih\n& Beradab', _badges[4], Colors.grey[500]!, Colors.grey[400]!, Colors.grey[600]!),
+      BadgeData('Santri Cilik\nTeladan', _badges[5], Colors.grey[500]!, Colors.grey[400]!, Colors.grey[600]!),
     ];
 
     final content = Column(
       children: [
-        if (isEmbedded)
+        if (widget.isEmbedded)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
             child: Text(
@@ -50,7 +76,7 @@ class LencanaScreen extends StatelessWidget {
                   child: Icon(Icons.star, color: Colors.amber[500], size: 20),
                 ),
                 const SizedBox(width: 8),
-                Text('12', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.grey[800])),
+                Text('$_totalBintang', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.grey[800])),
               ]),
               Container(width: 1, height: 24, color: Colors.grey[300]),
               Row(children: [
@@ -60,7 +86,7 @@ class LencanaScreen extends StatelessWidget {
                   child: Icon(Icons.shield, color: Colors.grey[500], size: 20),
                 ),
                 const SizedBox(width: 8),
-                Text('2/6', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.grey[800])),
+                Text('${_badges.where((unlocked) => unlocked).length}/${StorageService.totalBadges}', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.grey[800])),
               ]),
             ],
           ),
@@ -78,7 +104,7 @@ class LencanaScreen extends StatelessWidget {
       ],
     );
 
-    if (isEmbedded) {
+    if (widget.isEmbedded) {
       return content;
     }
 

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../data/bank_soal.dart';
 import '../core/fisher_yates_shuffle.dart';
@@ -14,7 +13,6 @@ class DailyQuizScreen extends StatefulWidget {
 class _DailyQuizScreenState extends State<DailyQuizScreen> {
   final StorageService _storage = StorageService();
   Map<String, dynamic>? _soal;
-  int _nyawa = 1;
   bool _answered = false;
   String? _selected;
   bool _correct = false;
@@ -32,7 +30,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     setState(() => _soal = q);
   }
 
-  void _jawab(String opsi) {
+  Future<void> _jawab(String opsi) async {
     if (_answered) return;
     setState(() {
       _answered = true;
@@ -40,7 +38,8 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
       _correct = opsi == (_soal!['opsi'] as List)[_soal!['jawabanBenar'] as int];
     });
     if (_correct) {
-      _storage.getTotalPoin().then((p) => _storage.setTotalPoin(p + 50));
+      final currentPoin = await _storage.getTotalPoin();
+      await _storage.setTotalPoin(currentPoin + 50);
     }
   }
 
@@ -71,8 +70,11 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                         final o = e.value;
                         Color? bg;
                         if (_answered) {
-                          if (i == jawabanBenar) bg = Colors.green[100];
-                          else if (_selected == o) bg = Colors.red[100];
+                          if (i == jawabanBenar) {
+                            bg = Colors.green[100];
+                          } else if (_selected == o) {
+                            bg = Colors.red[100];
+                          }
                         }
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 10),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'tahapan_pulau_screen.dart';
+import '../core/fsm_controller.dart';
 import '../core/storage_service.dart';
 
 class PetaScreen extends StatefulWidget {
@@ -22,29 +23,29 @@ class _PetaScreenState extends State<PetaScreen> {
     {'no': 6, 'nama': 'Ujian Akhir', 'asset': 'assets/images/pulau_6_istana.png', 'width': 200.0, 'left': 140.0, 'top': 120.0},
   ];
 
-  Map<int, String> _status = {};
+  final Map<int, String> _status = {};
+  final Map<int, int> _stars = {};
 
   @override
   void initState() {
     super.initState();
     _loadStatus();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scroll.animateTo(_scroll.position.maxScrollExtent, duration: const Duration(milliseconds: 500), curve: Curves.easeOut);
+      if (_scroll.hasClients) {
+        _scroll.animateTo(_scroll.position.maxScrollExtent, duration: const Duration(milliseconds: 500), curve: Curves.easeOut);
+      }
     });
   }
 
   Future<void> _loadStatus() async {
-    // Default pulau 1 unlocked
-    await _storage.setProgres('pulau_1_unlocked', true);
+    final states = await _storage.getFsmStates();
     for (final p in _pulau) {
       final no = p['no'] as int;
-      final unlocked = await _storage.getProgres('pulau_${no}_unlocked');
-      final completed = await _storage.getProgres('pulau_${no}_completed');
-      String s = 'locked';
-      if (unlocked) s = 'unlocked';
-      if (completed) s = 'completed';
-      _status[no] = s;
+      final state = states[ProgressionFSM.islandKey(no)] ?? LevelState.locked;
+      _status[no] = state.name;
+      _stars[no] = await _storage.getIslandStars(no);
     }
+    if (!mounted) return;
     setState(() {});
   }
 
@@ -101,7 +102,7 @@ class _PetaScreenState extends State<PetaScreen> {
                     onTap: unlocked
                         ? () async {
                             await Navigator.push(context, MaterialPageRoute(builder: (_) => TahapanPulauScreen(pulauId: no, namaPulau: 'Pulau $no: ${p['nama']}')));
-                            _loadStatus();
+                            if (mounted) await _loadStatus();
                           }
                         : () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pulau ini masih terkunci!'), backgroundColor: Colors.red)),
                     child: Column(
@@ -121,7 +122,17 @@ class _PetaScreenState extends State<PetaScreen> {
                           child: Text('Pulau $no: ${p['nama']}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
                         if (completed)
-                          Row(mainAxisSize: MainAxisSize.min, children: List.generate(3, (_) => const Icon(Icons.star, color: Colors.amber, size: 16))),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(
+                              3,
+                              (i) => Icon(
+                                Icons.star,
+                                color: i < (_stars[no] ?? 0) ? Colors.amber : Colors.grey[300],
+                                size: 16,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),

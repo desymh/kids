@@ -1,16 +1,61 @@
 import '../core/fisher_yates_shuffle.dart';
 
 class BankSoal {
+  static const List<String> islandNames = [
+    'Pondasi Islam',
+    'Thaharah',
+    'Ibadah Shalat',
+    'Ibadah Puasa',
+    'Doa & Adab',
+    'Ujian Akhir',
+  ];
+
+  static const List<List<String>> stageTitles = [
+    ['Dua Kalimat Syahadat', 'Rukun Islam', 'Rukun Iman', 'Ujian Pulau 1'],
+    ['Pengenalan Najis', 'Simulasi Wudhu', 'Studi Kasus Najis', 'Ujian Pulau 2'],
+    ['Bacaan Dasar', 'Simulasi Shalat', 'Pembatal Shalat', 'Ujian Pulau 3'],
+    ['Niat & Doa', 'Sunnah Puasa', 'Studi Kasus Puasa', 'Ujian Pulau 4'],
+    ['Susun Doa', 'Tebak Arti', 'Adab Harian', 'Ujian Pulau 5'],
+    ['Evaluasi Dasar', 'Evaluasi Lanjutan', 'Evaluasi Komprehensif', 'Ujian Akhir'],
+  ];
+
+  static const List<String> badgeNames = [
+    'Duta Rukun\nIslam',
+    'Ahli\nThaharah',
+    'Santri Taat\nShalat',
+    'Pejuang\nRamadhan',
+    'Anak Shalih\n& Beradab',
+    'Santri Cilik\nTeladan',
+  ];
+
+  static String islandName(int pulauId) =>
+      islandNames[(pulauId - 1).clamp(0, islandNames.length - 1)];
+
+  static String stageTitle(int pulauId, int tahap) =>
+      stageTitles[(pulauId - 1).clamp(0, stageTitles.length - 1)]
+          [(tahap - 1).clamp(0, 3)];
+
+  static String badgeName(int pulauId) =>
+      badgeNames[(pulauId - 1).clamp(0, badgeNames.length - 1)];
+
   static final List<Map<String, dynamic>> bank = [
     // Pulau 1 - Pondasi Islam
-    {'id': 1, 'pulauId': 1, 'tahap': 1, 'pertanyaan': 'Apa rukun Islam pertama?', 'opsi': ['Syahadat', 'Shalat', 'Zakat', 'Puasa'], 'jawabanBenar': 0},
-    {'id': 2, 'pulauId': 1, 'tahap': 1, 'pertanyaan': 'Berapa jumlah rukun iman?', 'opsi': ['5', '6', '7', '8'], 'jawabanBenar': 1},
-    {'id': 3, 'pulauId': 1, 'tahap': 1, 'pertanyaan': 'Siapa utusan Allah terakhir?', 'opsi': ['Isa', 'Musa', 'Muhammad', 'Ibrahim'], 'jawabanBenar': 2},
-    {'id': 4, 'pulauId': 1, 'tahap': 2, 'pertanyaan': 'Apa arti syahadat?', 'opsi': ['Bersaksi', 'Berdoa', 'Bersedekah', 'Berpuasa'], 'jawabanBenar': 0},
-    {'id': 5, 'pulauId': 1, 'tahap': 2, 'pertanyaan': 'Rukun Islam yang ke-5 adalah?', 'opsi': ['Zakat', 'Puasa', 'Haji', 'Shalat'], 'jawabanBenar': 2},
-    {'id': 6, 'pulauId': 1, 'tahap': 3, 'pertanyaan': 'Beriman kepada Malaikat termasuk rukun iman ke?', 'opsi': ['1', '2', '3', '4'], 'jawabanBenar': 1},
-    {'id': 7, 'pulauId': 1, 'tahap': 3, 'pertanyaan': 'Hari kiamat disebut juga?', 'opsi': ['Yaumul akhir', 'Yaumul qiyamah', 'Yaumul hisab', 'Yaumul mizan'], 'jawabanBenar': 0},
-    {'id': 8, 'pulauId': 1, 'tahap': 4, 'pertanyaan': 'Malaikat pencatat amal baik adalah?', 'opsi': ['Raqib', 'Atid', 'Jibril', 'Mikail'], 'jawabanBenar': 0},
+    {'id': 'p1_t1_q1', 'pulauId': 1, 'tahap': 1, 'pertanyaan': 'Apa rukun Islam pertama?', 'opsi': ['Syahadat', 'Shalat', 'Zakat', 'Puasa'], 'jawabanBenar': 0},
+    {'id': 'p1_t1_q2', 'pulauId': 1, 'tahap': 1, 'pertanyaan': 'Berapa jumlah rukun iman?', 'opsi': ['5', '6', '7', '8'], 'jawabanBenar': 1},
+    {'id': 'p1_t1_q3', 'pulauId': 1, 'tahap': 1, 'pertanyaan': 'Siapa nabi terakhir yang diutus Allah?', 'opsi': ['Isa', 'Musa', 'Muhammad', 'Ibrahim'], 'jawabanBenar': 2},
+    {'id': 'p1_t1_q4', 'pulauId': 1, 'tahap': 1, 'pertanyaan': 'Apa rukun Islam kedua?', 'opsi': ['Zakat', 'Puasa', 'Shalat', 'Haji'], 'jawabanBenar': 2},
+    {'id': 'p1_t2_q1', 'pulauId': 1, 'tahap': 2, 'pertanyaan': 'Apa arti kata syahadat?', 'opsi': ['Bersaksi', 'Berdoa', 'Bersedekah', 'Berpuasa'], 'jawabanBenar': 0},
+    {'id': 'p1_t2_q2', 'pulauId': 1, 'tahap': 2, 'pertanyaan': 'Apa rukun Islam kelima?', 'opsi': ['Zakat', 'Puasa', 'Haji', 'Shalat'], 'jawabanBenar': 2},
+    {'id': 'p1_t2_q3', 'pulauId': 1, 'tahap': 2, 'pertanyaan': 'Rukun iman pertama adalah iman kepada?', 'opsi': ['Malaikat', 'Allah', 'Kitab', 'Hari akhir'], 'jawabanBenar': 1},
+    {'id': 'p1_t2_q4', 'pulauId': 1, 'tahap': 2, 'pertanyaan': 'Kitab Taurat diturunkan kepada nabi?', 'opsi': ['Isa', 'Musa', 'Daud', 'Ibrahim'], 'jawabanBenar': 1},
+    {'id': 'p1_t3_q1', 'pulauId': 1, 'tahap': 3, 'pertanyaan': 'Malaikat Mikail dikenal sebagai malaikat yang?', 'opsi': ['Membawa wahyu', 'Mencabut nyawa', 'Membagi rezeki', 'Meniup sangkakala'], 'jawabanBenar': 2},
+    {'id': 'p1_t3_q2', 'pulauId': 1, 'tahap': 3, 'pertanyaan': 'Malaikat Jibril bertugas utama?', 'opsi': ['Membawa rezeki', 'Membawa wahyu', 'Mencabut nyawa', 'Menjaga surga'], 'jawabanBenar': 1},
+    {'id': 'p1_t3_q3', 'pulauId': 1, 'tahap': 3, 'pertanyaan': 'Iman kepada qada dan qadar termasuk iman kepada?', 'opsi': ['Takdir', 'Rasul', 'Kitab', 'Malaikat'], 'jawabanBenar': 0},
+    {'id': 'p1_t3_q4', 'pulauId': 1, 'tahap': 3, 'pertanyaan': 'Berapa jumlah nabi dan rasul yang wajib kita ketahui?', 'opsi': ['10', '20', '25', '30'], 'jawabanBenar': 2},
+    {'id': 'p1_t4_q1', 'pulauId': 1, 'tahap': 4, 'pertanyaan': 'Apa rukun Islam keempat?', 'opsi': ['Zakat', 'Puasa', 'Haji', 'Shalat'], 'jawabanBenar': 1},
+    {'id': 'p1_t4_q2', 'pulauId': 1, 'tahap': 4, 'pertanyaan': 'Hari pembalasan amal manusia disebut?', 'opsi': ['Yaumul Hisab', 'Yaumul Jumat', 'Yaumul Arafah', 'Yaumul Tasyrik'], 'jawabanBenar': 0},
+    {'id': 'p1_t4_q3', 'pulauId': 1, 'tahap': 4, 'pertanyaan': 'Iman kepada kitab Allah merupakan rukun iman ke?', 'opsi': ['Pertama', 'Kedua', 'Ketiga', 'Keempat'], 'jawabanBenar': 2},
+    {'id': 'p1_t4_q4', 'pulauId': 1, 'tahap': 4, 'pertanyaan': 'Nabi yang menerima kitab Injil adalah?', 'opsi': ['Musa', 'Daud', 'Isa', 'Nuh'], 'jawabanBenar': 2},
     // Pulau 2 - Thaharah
     {'id': 9, 'pulauId': 2, 'tahap': 1, 'pertanyaan': 'Air suci disebut?', 'opsi': ['Ma thahur', 'Ma mutlaq', 'Ma mubah', 'Ma makruh'], 'jawabanBenar': 0},
     {'id': 10, 'pulauId': 2, 'tahap': 1, 'pertanyaan': 'Najis ringan (mukhaffafah) contohnya?', 'opsi': ['Air kencing bayi', 'Darah', 'Kotoran', 'Najis berat'], 'jawabanBenar': 0},
@@ -51,17 +96,24 @@ class BankSoal {
 
   static List<Map<String, dynamic>> getSoalPulau(int pulauId) {
     if (pulauId == 6) {
-      final all = bank.where((s) => s['pulauId'] != 6).toList();
-      final shuffled = FisherYatesShuffler.shuffle(all);
-      return shuffled.take(10).toList();
+      final combined = bank.where((question) => question['pulauId'] != 6).toList();
+      return FisherYatesShuffler.acakDaftarSoal(combined).take(10).toList();
     }
-    return bank.where((s) => s['pulauId'] == pulauId).toList();
+    final filtered = bank.where((question) => question['pulauId'] == pulauId).toList();
+    return FisherYatesShuffler.acakDaftarSoal(filtered);
   }
 
   static List<Map<String, dynamic>> getSoalTahap(int pulauId, int tahap) {
+    if (pulauId < 1 || pulauId > 6 || tahap < 1 || tahap > 4) {
+      return [];
+    }
     if (pulauId == 6) {
       return getSoalPulau(6);
     }
-    return bank.where((s) => s['pulauId'] == pulauId && s['tahap'] == tahap).toList();
+    final filtered = bank
+        .where((question) =>
+            question['pulauId'] == pulauId && question['tahap'] == tahap)
+        .toList();
+    return FisherYatesShuffler.acakDaftarSoal(filtered);
   }
 }

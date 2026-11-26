@@ -4,9 +4,11 @@ import 'peta_screen.dart';
 import 'simulasi_screen.dart';
 import 'lencana_screen.dart';
 import 'settings_screen.dart';
-import 'quiz_screen.dart';
-import 'tahapan_screen.dart';
 import 'daily_quiz_screen.dart';
+import 'tahapan_pulau_screen.dart';
+import 'profile_setup_screen.dart';
+import '../core/storage_service.dart';
+import '../data/bank_soal.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,11 +18,135 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String nama = 'Zaid';
-  String avatarAsset = 'assets/images/avatar_zaid.jpeg';
-  int bintang = 12;
-  int poin = 390;
+  final StorageService _storage = StorageService();
+  final GlobalKey<LencanaScreenState> _lencanaKey = GlobalKey<LencanaScreenState>();
+  String nama = 'Santri';
+  String avatarAsset = 'assets/images/avatar_zaid.png';
+  int bintang = 0;
+  int poin = 0;
   int _navIndex = 0;
+  Map<String, int>? _nextStage;
+  double _progress = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHomeData();
+  }
+
+  Future<void> _loadHomeData() async {
+    final savedNama = await _storage.getNama();
+    final avatar = await _storage.getAvatar();
+    final savedBintang = await _storage.getTotalBintang();
+    final savedPoin = await _storage.getTotalPoin();
+    final nextStage = await _storage.getNextStage();
+    final completedStages = await _storage.getCompletedStageCount();
+    if (!mounted) return;
+
+    final allComplete = nextStage == null;
+    setState(() {
+      nama = savedNama.isEmpty ? 'Santri' : savedNama;
+      avatarAsset = avatar == 'aisyah'
+          ? 'assets/images/avatar_aisyah.png'
+          : 'assets/images/avatar_zaid.png';
+      bintang = savedBintang;
+      poin = savedPoin;
+      _nextStage = allComplete ? {'pulau': 6, 'tahap': 4} : nextStage;
+      _progress = allComplete
+          ? 1
+          : completedStages / (StorageService.totalIslands * StorageService.stagesPerIsland);
+    });
+    await _lencanaKey.currentState?.refresh();
+  }
+
+  String get _continueTitle {
+    final next = _nextStage;
+    if (next == null) return 'Lanjutkan: Pulau 1 - Tahap 1';
+    final pulau = next['pulau']!;
+    final tahap = next['tahap']!;
+    final action = _progress >= 1 ? 'Ulangi' : 'Lanjutkan';
+    return '$action: Pulau $pulau - Tahap $tahap (${BankSoal.islandName(pulau)})';
+  }
+
+  Future<void> _openPeta() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PetaScreen()),
+    );
+    if (mounted) await _loadHomeData();
+  }
+
+  Future<void> _openLencana() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const LencanaScreen()),
+    );
+    if (mounted) await _loadHomeData();
+  }
+
+  Future<void> _continueAdventure() async {
+    final next = _nextStage;
+    if (next == null) return;
+    final pulau = next['pulau']!;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TahapanPulauScreen(
+          pulauId: pulau,
+          namaPulau: 'Pulau $pulau: ${BankSoal.islandName(pulau)}',
+        ),
+      ),
+    );
+    if (mounted) await _loadHomeData();
+  }
+
+  Future<void> _openMisi() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const DailyQuizScreen()),
+    );
+    if (mounted) await _loadHomeData();
+  }
+
+  Future<void> _editProfile() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const ProfileSetupScreen(isEditing: true),
+      ),
+    );
+    if (mounted) await _loadHomeData();
+  }
+
+  Future<void> _resetProgress() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reset Progres Tes'),
+        content: const Text(
+          'Semua progres, bintang, poin, dan lencana akan dihapus. Profil tidak akan berubah.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _storage.resetSemuaProgres();
+    if (!mounted) return;
+    await _loadHomeData();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Progres tes berhasil direset.')),
+    );
+  }
 
   void _showAvatarPicker() {
     showModalBottomSheet(
@@ -58,16 +184,16 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 _AvatarOption(
                   name: 'Zaid',
-                  asset: 'assets/images/avatar_zaid.jpeg',
+                  asset: 'assets/images/avatar_zaid.png',
                   selected: avatarAsset.contains('zaid'),
-                  onTap: () => _selectAvatar('Zaid', 'assets/images/avatar_zaid.jpeg'),
+                  onTap: () => _selectAvatar('Zaid', 'assets/images/avatar_zaid.png'),
                 ),
                 const SizedBox(width: 32),
                 _AvatarOption(
                   name: 'Aisyah',
-                  asset: 'assets/images/avatar_aisyah.jpeg',
+                  asset: 'assets/images/avatar_aisyah.png',
                   selected: avatarAsset.contains('aisyah'),
-                  onTap: () => _selectAvatar('Aisyah', 'assets/images/avatar_aisyah.jpeg'),
+                  onTap: () => _selectAvatar('Aisyah', 'assets/images/avatar_aisyah.png'),
                 ),
               ],
             ),
@@ -78,11 +204,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _selectAvatar(String name, String asset) {
-    setState(() {
-      nama = name;
-      avatarAsset = asset;
-    });
+  Future<void> _selectAvatar(String name, String asset) async {
+    await _storage.setAvatar(name.toLowerCase());
+    if (!mounted) return;
+    setState(() => avatarAsset = asset);
     Navigator.pop(context);
   }
 
@@ -110,38 +235,27 @@ class _HomeScreenState extends State<HomeScreen> {
                 context,
                 MaterialPageRoute(builder: (_) => const BelajarScreen()),
               ),
-              onPetaTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PetaScreen()),
-              ),
+              onPetaTap: _openPeta,
               onSimulasiTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const SimulasiScreen()),
               ),
-              onLencanaTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LencanaScreen()),
-              ),
-              onContinueTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const TahapanScreen(pulauNo: 2, pulauNama: 'Thaharah'),
-                ),
-              ),
-              onMisiTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const DailyQuizScreen()),
-              ),
+              onLencanaTap: _openLencana,
+              onContinueTap: _continueAdventure,
+              onMisiTap: _openMisi,
+              continueTitle: _continueTitle,
+              continueProgress: _progress.clamp(0.0, 1.0),
             ),
             // Tab 1: Lencana
-            const _EmbeddedLencanaTab(),
+            _EmbeddedLencanaTab(lencanaKey: _lencanaKey),
             // Tab 2: Profil
             _EmbeddedProfilTab(
               nama: nama,
               avatarAsset: avatarAsset,
               bintang: bintang,
               poin: poin,
-              onGantiKarakter: _showAvatarPicker,
+              onEditProfile: _editProfile,
+              onResetProgress: _resetProgress,
             ),
           ],
         ),
@@ -175,7 +289,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icons.emoji_events_rounded,
                   label: 'Lencana',
                   active: _navIndex == 1,
-                  onTap: () => setState(() => _navIndex = 1),
+                  onTap: () {
+                    setState(() => _navIndex = 1);
+                    _lencanaKey.currentState?.refresh();
+                  },
                 ),
                 _NavItem(
                   icon: Icons.person_rounded,
@@ -309,6 +426,8 @@ class _HomeContent extends StatelessWidget {
   final String avatarAsset;
   final int bintang;
   final int poin;
+  final String continueTitle;
+  final double continueProgress;
   final VoidCallback onAvatarTap;
   final VoidCallback onSettingsTap;
   final VoidCallback onBelajarTap;
@@ -323,6 +442,8 @@ class _HomeContent extends StatelessWidget {
     required this.avatarAsset,
     required this.bintang,
     required this.poin,
+    required this.continueTitle,
+    required this.continueProgress,
     required this.onAvatarTap,
     required this.onSettingsTap,
     required this.onBelajarTap,
@@ -728,11 +849,11 @@ class _HomeContent extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Row(
+                      Row(
                         children: [
                           Expanded(
                             child: Text(
-                              'Lanjutkan: Pulau 2 - Tahap 2 (Thaharah)',
+                              continueTitle,
                               style: TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w900,
@@ -742,7 +863,7 @@ class _HomeContent extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '60%',
+                            '${(continueProgress * 100).round()}%',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w900,
@@ -754,8 +875,8 @@ class _HomeContent extends StatelessWidget {
                       const SizedBox(height: 8),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(6),
-                        child: const LinearProgressIndicator(
-                          value: 0.6,
+                        child: LinearProgressIndicator(
+                          value: continueProgress,
                           minHeight: 8,
                           backgroundColor: Color(0xFFD9F2E6),
                           valueColor: AlwaysStoppedAnimation(Color(0xFF2E8B57)),
@@ -930,11 +1051,12 @@ class _GameMenuCard extends StatelessWidget {
 
 // Embedded Lencana Tab agar tidak terjadi bentrok Scaffold
 class _EmbeddedLencanaTab extends StatelessWidget {
-  const _EmbeddedLencanaTab();
+  final GlobalKey<LencanaScreenState> lencanaKey;
+  const _EmbeddedLencanaTab({required this.lencanaKey});
 
   @override
   Widget build(BuildContext context) {
-    return const LencanaScreen(isEmbedded: true);
+    return LencanaScreen(key: lencanaKey, isEmbedded: true);
   }
 }
 
@@ -944,14 +1066,16 @@ class _EmbeddedProfilTab extends StatelessWidget {
   final String avatarAsset;
   final int bintang;
   final int poin;
-  final VoidCallback onGantiKarakter;
+  final VoidCallback onEditProfile;
+  final VoidCallback onResetProgress;
 
   const _EmbeddedProfilTab({
     required this.nama,
     required this.avatarAsset,
     required this.bintang,
     required this.poin,
-    required this.onGantiKarakter,
+    required this.onEditProfile,
+    required this.onResetProgress,
   });
 
   @override
@@ -1086,14 +1210,14 @@ class _EmbeddedProfilTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          // Tombol Ganti Karakter
+          // Tombol Edit Profil
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: onGantiKarakter,
-              icon: const Icon(Icons.switch_account_rounded),
+              onPressed: onEditProfile,
+              icon: const Icon(Icons.edit),
               label: const Text(
-                'Ganti Karakter (Zaid / Aisyah)',
+                'Edit Nama & Karakter',
                 style: TextStyle(fontWeight: FontWeight.w800),
               ),
               style: ElevatedButton.styleFrom(
@@ -1102,6 +1226,24 @@ class _EmbeddedProfilTab extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 0,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onResetProgress,
+              icon: const Icon(Icons.restart_alt),
+              label: const Text(
+                'Reset Progres Tes',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFB45353),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                side: const BorderSide(color: Color(0xFFE7BDBD)),
               ),
             ),
           ),

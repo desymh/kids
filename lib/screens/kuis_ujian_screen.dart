@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../data/bank_soal.dart';
-import '../core/fisher_yates_shuffle.dart';
+import '../core/fsm_controller.dart';
 import '../core/storage_service.dart';
 
 class KuisUjianScreen extends StatefulWidget {
@@ -20,9 +20,11 @@ class _KuisUjianScreenState extends State<KuisUjianScreen> {
   int _nyawa = 3;
   int _benar = 0;
   Timer? _timer;
+  Timer? _feedbackTimer;
   int _sisaWaktu = 30;
   bool _answered = false;
   String? _selectedOpsi;
+  String? _soalError;
   bool _showResult = false;
 
   @override
@@ -32,19 +34,37 @@ class _KuisUjianScreenState extends State<KuisUjianScreen> {
   }
 
   void _loadSoal() {
-    final raw = BankSoal.getSoalTahap(widget.pulauId, widget.tahap);
-    final shuffled = FisherYatesShuffler.shuffle(raw);
-    final processed = shuffled.map((s) => FisherYatesShuffler.acakSoalDanOpsi(Map<String, dynamic>.from(s))).toList();
-    setState(() => _soal = processed);
-    _startTimer();
+    _timer?.cancel();
+    _feedbackTimer?.cancel();
+    try {
+      final questions = BankSoal.getSoalTahap(widget.pulauId, widget.tahap);
+      setState(() {
+        _soal = questions;
+        _soalError = questions.isEmpty
+            ? 'Soal untuk tahap ini belum tersedia.'
+            : null;
+      });
+    } catch (_) {
+      setState(() {
+        _soal = [];
+        _soalError = 'Soal tidak dapat dimuat. Silakan coba lagi.';
+      });
+    }
+    if (_soal.isNotEmpty && _soalError == null) {
+      _startTimer();
+    }
   }
 
   void _startTimer() {
     _timer?.cancel();
     _sisaWaktu = 30;
-    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       if (_sisaWaktu <= 0) {
-        t.cancel();
+        timer.cancel();
         _jawab(null);
       } else {
         setState(() => _sisaWaktu--);
@@ -53,19 +73,14 @@ class _KuisUjianScreenState extends State<KuisUjianScreen> {
   }
 
   void _jawab(String? jawaban) {
-    if (_answered) return;
+    if (_answered || _showResult || _soal.isEmpty || !mounted) return;
     _timer?.cancel();
     setState(() => _answered = true);
 
-    final q = _soal[_index];
-    final jawabanBenar = q['jawabanBenar'] as int;
-    final opsi = (q['opsi'] as List).cast<String>();
-
-    String? selectedJawaban = jawaban;
-    int selectedIndex = -1;
-    if (jawaban != null) {
-      selectedIndex = opsi.indexOf(jawaban);
-    }
+    final question = _soal[_index];
+    final jawabanBenar = question['jawabanBenar'] as int;
+    final opsi = (question['opsi'] as List).cast<String>();
+    final selectedIndex = jawaban == null ? -1 : opsi.indexOf(jawaban);
 
     if (selectedIndex == jawabanBenar) {
       _benar++;
@@ -74,8 +89,8 @@ class _KuisUjianScreenState extends State<KuisUjianScreen> {
     }
 
     setState(() => _selectedOpsi = jawaban);
-
-    Future.delayed(const Duration(seconds: 1), () {
+    _feedbackTimer = Timer(const Duration(seconds: 1), () {
+      if (!mounted) return;
       if (_index < _soal.length - 1 && _nyawa > 0) {
         setState(() {
           _index++;
@@ -90,93 +105,146 @@ class _KuisUjianScreenState extends State<KuisUjianScreen> {
   }
 
   Future<void> _selesai() async {
-    final total = _soal.length;
-    final skor = (total > 0) ? (_benar / total * 100).round() : 0;
-    final lulus = skor >= 60 && _nyawa > 0;
+    if (_showResult) return;
+    _timer?.cancel();
+    setState(() => _showResult = true);
 
-    int bintang = 0;
+    final total = _soal.length;
+    final skor = total > 0 ? (_benar / total * 100).round() : 0;
+    final lulus = skor >= ProgressionFSM.passScore && _nyawa > 0;
+    var bintang = 0;
     if (lulus) {
-      if (skor >= 90) bintang = 3;
-      else if (skor >= 75) bintang = 2;
-      else bintang = 1;
+      if (skor >= 90) {
+        bintang = 3;
+      } else if (skor >= 75) {
+        bintang = 2;
+      } else {
+        bintang = 1;
+      }
     }
 
+    var progression = const StageProgressionResult(passed: false);
+    var poinDidapat = 0;
     if (lulus) {
-      final poin = _benar * 10;
-      final currentPoin = await _storage.getTotalPoin();
-      await _storage.setTotalPoin(currentPoin + poin);
-      final currentBintang = await _storage.getTotalBintang();
-      await _storage.setTotalBintang(currentBintang + bintang);
-
-      // Save completed status for current tahap
-      await _storage.setProgres('pulau_${widget.pulauId}_tahap_${widget.tahap}_completed', true);
-
-      String notifText = '';
-      if (widget.tahap < 4) {
-        await _storage.setProgres('pulau_${widget.pulauId}_tahap_${widget.tahap + 1}_unlocked', true);
-        notifText = 'Hebat! Tahap ${widget.tahap + 1} telah terbuka!';
-      } else {
-        if (widget.pulauId < 6) {
-          await _storage.setProgres('pulau_${widget.pulauId}_completed', true);
-          await _storage.setProgres('pulau_${widget.pulauId + 1}_unlocked', true);
-          await _storage.setProgres('pulau_${widget.pulauId + 1}_tahap_1_unlocked', true);
-          await _storage.setProgres('lencana_${widget.pulauId}', true);
-          notifText = '🎉 SELAMAT! Pulau ${widget.pulauId + 1} & Lencana Pulau ${widget.pulauId} Telah Terbuka!';
-        }
-      }
-
-      setState(() => _showResult = true);
-
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => AlertDialog(
-          title: Text(lulus ? 'LULUS!' : 'BELUM LULUS'),
-          content: Text('Skor: $skor\nBenar: $_benar/$total\nNyawa: $_nyawa\nBintang: $bintang\n\n$notifText'),
-          actions: [
-            if (!lulus)
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _reset();
-                },
-                child: const Text('Coba Lagi'),
-              ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pop(context);
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        ),
+      final fsm = ProgressionFSM(initialStates: await _storage.getFsmStates());
+      progression = fsm.completeStage(
+        pulauId: widget.pulauId,
+        tahap: widget.tahap,
+        skor: skor,
+        nyawa: _nyawa,
       );
+      await _storage.saveFsmStates(fsm.states);
+
+      final bestStars = await _storage.getStageStars(widget.pulauId, widget.tahap);
+      if (bintang > bestStars) {
+        await _storage.setStageStars(widget.pulauId, widget.tahap, bintang);
+      }
+      await _storage.recalculateTotalStars();
+
+      poinDidapat = _benar * 10;
+      final currentPoin = await _storage.getTotalPoin();
+      await _storage.setTotalPoin(currentPoin + poinDidapat);
+    }
+
+    if (!mounted) return;
+    final retry = await _showResultDialog(
+      skor: skor,
+      total: total,
+      bintang: bintang,
+      poinDidapat: poinDidapat,
+      lulus: lulus,
+      progression: progression,
+    );
+    if (!mounted) return;
+    if (retry) {
+      _reset();
       return;
     }
 
-    setState(() => _showResult = true);
+    if (progression.nextStageUnlocked ||
+        progression.nextIslandUnlocked ||
+        progression.badgeUnlocked) {
+      await _showUnlockDialog(progression);
+    }
+    if (mounted) Navigator.pop(context);
+  }
 
-    showDialog(
+  Future<bool> _showResultDialog({
+    required int skor,
+    required int total,
+    required int bintang,
+    required int poinDidapat,
+    required bool lulus,
+    required StageProgressionResult progression,
+  }) async {
+    final hasUnlock = progression.nextStageUnlocked ||
+        progression.nextIslandUnlocked ||
+        progression.badgeUnlocked;
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(lulus ? 'LULUS!' : 'BELUM LULUS'),
+            content: Text(
+              'Skor: $skor\n'
+              'Benar: $_benar/$total\n'
+              'Nyawa: $_nyawa\n'
+              'Bintang: $bintang\n'
+              'Poin: +$poinDidapat',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: Text(lulus ? 'Main Lagi' : 'Coba Lagi'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: Text(hasUnlock ? 'Lihat Pembukaan' : 'Kembali ke Tahapan'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  Future<void> _showUnlockDialog(StageProgressionResult progression) async {
+    final messages = <String>[];
+    if (progression.nextStageUnlocked) {
+      messages.add('Tahap ${widget.tahap + 1} telah terbuka.');
+    }
+    if (progression.islandCompleted) {
+      messages.add('Pulau ${widget.pulauId} telah selesai.');
+    }
+    if (progression.nextIslandUnlocked) {
+      messages.add(
+        'Pulau ${widget.pulauId + 1} (${BankSoal.islandName(widget.pulauId + 1)}) telah terbuka.',
+      );
+    }
+    if (progression.badgeUnlocked) {
+      messages.add(
+        'Lencana ${BankSoal.badgeName(widget.pulauId).replaceAll('\n', ' ')} telah terbuka.',
+      );
+    }
+
+    await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: const Text('BELUM LULUS'),
-        content: Text('Skor: $skor\nBenar: $_benar/$total\nNyawa: $_nyawa'),
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Pembukaan Baru!'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: messages
+              .map((message) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(message),
+                  ))
+              .toList(),
+        ),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _reset();
-            },
-            child: const Text('Coba Lagi'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            child: const Text('OK'),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Kembali ke Tahapan'),
           ),
         ],
       ),
@@ -184,12 +252,15 @@ class _KuisUjianScreenState extends State<KuisUjianScreen> {
   }
 
   void _reset() {
+    _timer?.cancel();
+    _feedbackTimer?.cancel();
     setState(() {
       _index = 0;
       _nyawa = 3;
       _benar = 0;
       _answered = false;
       _selectedOpsi = null;
+      _soalError = null;
       _showResult = false;
     });
     _loadSoal();
@@ -198,11 +269,38 @@ class _KuisUjianScreenState extends State<KuisUjianScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _feedbackTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_soalError != null) {
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          foregroundColor: Colors.teal[900],
+          title: const Text('Kuis Tidak Tersedia'),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_soalError!, textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Kembali'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     if (_soal.isEmpty) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -261,8 +359,11 @@ class _KuisUjianScreenState extends State<KuisUjianScreen> {
                         final isSelected = _selectedOpsi == o;
                         Color? bg;
                         if (_answered) {
-                          if (isCorrect) bg = Colors.green[100];
-                          else if (isSelected) bg = Colors.red[100];
+                          if (isCorrect) {
+                            bg = Colors.green[100];
+                          } else if (isSelected) {
+                            bg = Colors.red[100];
+                          }
                         }
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 10),
