@@ -15,7 +15,7 @@ class LencanaScreen extends StatefulWidget {
 class LencanaScreenState extends State<LencanaScreen> {
   final StorageService _storage = StorageService();
   List<bool> _badges = List<bool>.filled(StorageService.totalBadges, false);
-  int _totalBintang = 0;
+  int _nyawa = StorageService.defaultNyawa;
 
   @override
   void initState() {
@@ -25,11 +25,11 @@ class LencanaScreenState extends State<LencanaScreen> {
 
   Future<void> refresh() async {
     final badges = await _storage.getLencana();
-    final totalBintang = await _storage.getTotalBintang();
+    final nyawa = await _storage.getNyawa();
     if (!mounted) return;
     setState(() {
       _badges = badges;
-      _totalBintang = totalBintang;
+      _nyawa = nyawa;
     });
   }
 
@@ -154,11 +154,12 @@ class LencanaScreenState extends State<LencanaScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                      color: Colors.amber[100], shape: BoxShape.circle),
-                  child: Icon(Icons.star, color: Colors.amber[500], size: 20),
+                      color: Colors.red[50], shape: BoxShape.circle),
+                  child: Icon(Icons.favorite_rounded,
+                      color: Colors.red, size: 20),
                 ),
                 const SizedBox(width: 8),
-                Text('$_totalBintang',
+                Text('$_nyawa',
                     style: TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 16,

@@ -177,6 +177,7 @@ void main() {
     await storage.setAvatar('aisyah');
     await storage.setRegistered(true);
     await storage.setTotalPoin(160);
+    await storage.setNyawa(0);
     await storage.setStageStars(1, 1, 3);
     final states = await storage.getFsmStates();
     states[ProgressionFSM.stageKey(1, 1)] = LevelState.completed;
@@ -200,6 +201,7 @@ void main() {
     expect(await storage.getAvatar(), 'aisyah');
     expect(await storage.isRegistered(), isTrue);
     expect(await storage.getTotalPoin(), 0);
+    expect(await storage.getNyawa(), StorageService.defaultNyawa);
     expect(await storage.getTotalBintang(), 0);
     expect(await storage.getStageStars(1, 1), 0);
     expect(

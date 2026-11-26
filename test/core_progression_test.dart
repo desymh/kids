@@ -169,7 +169,7 @@ void main() {
   });
 
   group('StorageService', () {
-    test('migrates legacy profile, points, stars, states, and badges',
+    test('migrates legacy profile, points, lives, stars, states, and badges',
         () async {
       SharedPreferences.setMockInitialValues({
         'nama': 'Naya',
@@ -187,6 +187,7 @@ void main() {
       expect(await storage.getNama(), 'Naya');
       expect(await storage.getAvatar(), 'aisyah');
       expect(await storage.getTotalPoin(), 40);
+      expect(await storage.getNyawa(), StorageService.defaultNyawa);
       expect(await storage.getTotalBintang(), 7);
       expect(await storage.getLevelState(ProgressionFSM.stageKey(1, 1)),
           LevelState.completed);
@@ -200,6 +201,8 @@ void main() {
       expect(await storage.isRegistered(), isTrue);
       expect(preferences.getBool(StorageService.keyRegistered), isTrue);
       expect(preferences.getInt(StorageService.keyTotalPoin), 40);
+      expect(
+          preferences.getInt(StorageService.keyNyawa), StorageService.defaultNyawa);
       expect(preferences.getInt(StorageService.keyTotalBintang), 7);
     });
 
@@ -302,6 +305,39 @@ void main() {
       expect(preferences.getBool('pulau_2_completed'), isFalse);
       expect(preferences.getBool('pulau_2_tahap_1_unlocked'), isTrue);
       expect(preferences.getBool('lencana_1'), isTrue);
+    });
+
+    test('defaults lives to five and only clamps them at zero', () async {
+      SharedPreferences.setMockInitialValues({
+        StorageService.keyNyawa: 99,
+      });
+      final storage = StorageService();
+      await storage.init();
+
+      expect(await storage.getNyawa(), 99);
+      await storage.setNyawa(-4);
+      expect(await storage.getNyawa(), 0);
+      expect(await storage.kurangiNyawa(1), 0);
+      expect(await storage.tambahNyawa(1), 1);
+      expect(await storage.tambahNyawa(10), 11);
+      expect(await storage.tambahNyawa(-3), 11);
+      await storage.setNyawa(3);
+      expect(await storage.kurangiNyawa(5), 0);
+      expect(await storage.tambahNyawa(8), 8);
+
+      final preferences = await SharedPreferences.getInstance();
+      expect(preferences.getInt(StorageService.keyNyawa), 8);
+    });
+
+    test('reset restores shared lives to the default', () async {
+      SharedPreferences.setMockInitialValues({});
+      final storage = StorageService();
+      await storage.init();
+      await storage.setNyawa(0);
+
+      await storage.resetSemuaProgres();
+
+      expect(await storage.getNyawa(), StorageService.defaultNyawa);
     });
 
     test('adds session points and clamps the persisted total at zero',

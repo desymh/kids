@@ -584,6 +584,33 @@ void main() {
     expect(find.text('Selesai'), findsOneWidget);
   });
 
+  testWidgets('completing Bab 1 refills two lives and celebrates',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({
+      StorageService.keyAvatar: 'zaid',
+      StorageService.keyNyawa: 1,
+    });
+    final storage = StorageService();
+    await storage.init();
+    await _pumpDetail(tester, MateriData.dataBabBelajar.first);
+
+    await tester.tap(find.byKey(const ValueKey('next-material-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('next-material-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Selesai'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('next-material-button')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('🎉 Alhamdulillah! +2 ❤️ Nyawa ditambahkan!'),
+      findsOneWidget,
+    );
+    expect(await storage.getNyawa(), 3);
+    expect(await storage.getProgres('bab_1_selesai'), isTrue);
+  });
+
   testWidgets('Bab 1 point panel fits a narrow phone screen', (tester) async {
     await tester.binding.setSurfaceSize(const Size(320, 640));
     addTearDown(() => tester.binding.setSurfaceSize(null));

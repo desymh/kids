@@ -6,6 +6,7 @@ class StorageService {
   static const String keyAvatar = 'user_avatar';
   static const String keyRegistered = 'is_registered';
   static const String keyTotalPoin = 'total_poin';
+  static const String keyNyawa = 'nyawa';
   static const String keyTotalBintang = 'total_bintang';
   static const String keyLencana = 'lencana';
   static const String keyGuruMode = 'guru_mode';
@@ -13,6 +14,7 @@ class StorageService {
   static const int totalIslands = 6;
   static const int stagesPerIsland = 4;
   static const int totalBadges = 6;
+  static const int defaultNyawa = 5;
 
   Future<void> init() async {
     final sp = await SharedPreferences.getInstance();
@@ -30,6 +32,8 @@ class StorageService {
       await sp.setInt(
           keyTotalPoin, sp.getInt('totalPoin') ?? sp.getInt('poin') ?? 0);
     }
+    final storedNyawa = sp.get(keyNyawa);
+    await setNyawa(storedNyawa is int ? storedNyawa : defaultNyawa);
     if (!sp.containsKey(keyTotalBintang)) {
       await sp.setInt(keyTotalBintang,
           sp.getInt('totalBintang') ?? sp.getInt('bintang') ?? 0);
@@ -121,6 +125,43 @@ class StorageService {
     await setTotalPoin(updated);
     return updated < 0 ? 0 : updated;
   }
+
+  Future<int> getNyawa() async {
+    final sp = await SharedPreferences.getInstance();
+    final stored = sp.get(keyNyawa);
+    if (stored is! int) {
+      await sp.setInt(keyNyawa, defaultNyawa);
+      return defaultNyawa;
+    }
+    final nyawa = _clampNyawa(stored);
+    if (nyawa != stored) {
+      await sp.setInt(keyNyawa, nyawa);
+    }
+    return nyawa;
+  }
+
+  Future<void> setNyawa(int value) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setInt(keyNyawa, _clampNyawa(value));
+  }
+
+  Future<int> kurangiNyawa(int jumlah) async {
+    final current = await getNyawa();
+    final pengurangan = jumlah < 0 ? 0 : jumlah;
+    final updated = _clampNyawa(current - pengurangan);
+    await setNyawa(updated);
+    return updated;
+  }
+
+  Future<int> tambahNyawa(int jumlah) async {
+    final current = await getNyawa();
+    final penambahan = jumlah < 0 ? 0 : jumlah;
+    final updated = _clampNyawa(current + penambahan);
+    await setNyawa(updated);
+    return updated;
+  }
+
+  int _clampNyawa(int value) => value < 0 ? 0 : value;
 
   Future<int> getTotalBintang() async {
     final sp = await SharedPreferences.getInstance();
@@ -317,6 +358,7 @@ class StorageService {
     states[ProgressionFSM.stageKey(1, 1)] = LevelState.unlocked;
     await saveFsmStates(states);
     await setTotalPoin(0);
+    await setNyawa(defaultNyawa);
     await setTotalBintang(0);
   }
 

@@ -34,6 +34,7 @@ class _BelajarDetailScreenState extends State<BelajarDetailScreen> {
   String _avatar = 'zaid';
   bool _playing = false;
   bool _ttsReady = true;
+  bool _completing = false;
 
   List<Map<String, dynamic>> get _items =>
       (widget.bab['items'] as List? ?? const [])
@@ -101,9 +102,42 @@ class _BelajarDetailScreenState extends State<BelajarDetailScreen> {
     super.dispose();
   }
 
-  Future<void> _markSelesai() async {
+  Future<void> _completeChapter() async {
+    if (_completing) return;
+    setState(() => _completing = true);
+    await _stopAudio();
     final key = 'bab_${widget.bab['bab']}_selesai';
     await _storage.setProgres(key, true);
+    await _storage.tambahNyawa(2);
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(
+          '🎉 Alhamdulillah! +2 ❤️ Nyawa ditambahkan!',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            color: _emerald,
+          ),
+        ),
+        content: const Text(
+          'Alhamdulillah, materi bab ini sudah selesai dibaca.',
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Lanjut'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    Navigator.pop(context);
   }
 
   Future<void> _safeStopTts() async {
@@ -174,11 +208,7 @@ class _BelajarDetailScreenState extends State<BelajarDetailScreen> {
         curve: Curves.easeInOut,
       );
     } else {
-      _markSelesai();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selesai dibaca!')),
-      );
-      Navigator.pop(context);
+      _completeChapter();
     }
   }
 

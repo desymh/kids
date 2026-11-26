@@ -19,11 +19,12 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final StorageService _storage = StorageService();
-  final GlobalKey<LencanaScreenState> _lencanaKey = GlobalKey<LencanaScreenState>();
+  final GlobalKey<LencanaScreenState> _lencanaKey =
+      GlobalKey<LencanaScreenState>();
   String nama = 'Santri';
   String avatarAsset = 'assets/images/avatar_zaid.png';
-  int bintang = 0;
-  int poin = 0;
+  int nyawa = StorageService.defaultNyawa;
+  int jumlahLencanaTerbuka = 0;
   int _navIndex = 0;
   Map<String, int>? _nextStage;
   double _progress = 0;
@@ -37,8 +38,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadHomeData() async {
     final savedNama = await _storage.getNama();
     final avatar = await _storage.getAvatar();
-    final savedBintang = await _storage.getTotalBintang();
-    final savedPoin = await _storage.getTotalPoin();
+    final savedNyawa = await _storage.getNyawa();
+    final badges = await _storage.getLencana();
+    final savedJumlahLencana = badges.where((unlocked) => unlocked).length;
     final nextStage = await _storage.getNextStage();
     final completedStages = await _storage.getCompletedStageCount();
     if (!mounted) return;
@@ -49,12 +51,13 @@ class _HomeScreenState extends State<HomeScreen> {
       avatarAsset = avatar == 'aisyah'
           ? 'assets/images/avatar_aisyah.png'
           : 'assets/images/avatar_zaid.png';
-      bintang = savedBintang;
-      poin = savedPoin;
+      nyawa = savedNyawa;
+      jumlahLencanaTerbuka = savedJumlahLencana;
       _nextStage = allComplete ? {'pulau': 6, 'tahap': 4} : nextStage;
       _progress = allComplete
           ? 1
-          : completedStages / (StorageService.totalIslands * StorageService.stagesPerIsland);
+          : completedStages /
+              (StorageService.totalIslands * StorageService.stagesPerIsland);
     });
     await _lencanaKey.currentState?.refresh();
   }
@@ -108,6 +111,22 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) await _loadHomeData();
   }
 
+  Future<void> _openBelajar() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const BelajarScreen()),
+    );
+    if (mounted) await _loadHomeData();
+  }
+
+  Future<void> _openSimulasi() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SimulasiScreen()),
+    );
+    if (mounted) await _loadHomeData();
+  }
+
   Future<void> _editProfile() async {
     await Navigator.push(
       context,
@@ -124,7 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Reset Progres Tes'),
         content: const Text(
-          'Semua progres, bintang, poin, dan lencana akan dihapus. Profil tidak akan berubah.',
+          'Semua progres dan lencana akan dihapus. Nyawa akan diisi ulang. Profil tidak akan berubah.',
         ),
         actions: [
           TextButton(
@@ -186,14 +205,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   name: 'Zaid',
                   asset: 'assets/images/avatar_zaid.png',
                   selected: avatarAsset.contains('zaid'),
-                  onTap: () => _selectAvatar('Zaid', 'assets/images/avatar_zaid.png'),
+                  onTap: () =>
+                      _selectAvatar('Zaid', 'assets/images/avatar_zaid.png'),
                 ),
                 const SizedBox(width: 32),
                 _AvatarOption(
                   name: 'Aisyah',
                   asset: 'assets/images/avatar_aisyah.png',
                   selected: avatarAsset.contains('aisyah'),
-                  onTap: () => _selectAvatar('Aisyah', 'assets/images/avatar_aisyah.png'),
+                  onTap: () => _selectAvatar(
+                      'Aisyah', 'assets/images/avatar_aisyah.png'),
                 ),
               ],
             ),
@@ -224,22 +245,15 @@ class _HomeScreenState extends State<HomeScreen> {
             _HomeContent(
               nama: nama,
               avatarAsset: avatarAsset,
-              bintang: bintang,
-              poin: poin,
+              nyawa: nyawa,
               onAvatarTap: _showAvatarPicker,
               onSettingsTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const SettingsScreen()),
               ),
-              onBelajarTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const BelajarScreen()),
-              ),
+              onBelajarTap: _openBelajar,
               onPetaTap: _openPeta,
-              onSimulasiTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SimulasiScreen()),
-              ),
+              onSimulasiTap: _openSimulasi,
               onLencanaTap: _openLencana,
               onContinueTap: _continueAdventure,
               onMisiTap: _openMisi,
@@ -252,8 +266,8 @@ class _HomeScreenState extends State<HomeScreen> {
             _EmbeddedProfilTab(
               nama: nama,
               avatarAsset: avatarAsset,
-              bintang: bintang,
-              poin: poin,
+              nyawa: nyawa,
+              jumlahLencanaTerbuka: jumlahLencanaTerbuka,
               onEditProfile: _editProfile,
               onResetProgress: _resetProgress,
             ),
@@ -263,7 +277,8 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          border: const Border(top: BorderSide(color: Color(0xFFC8E6D7), width: 1.5)),
+          border: const Border(
+              top: BorderSide(color: Color(0xFFC8E6D7), width: 1.5)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.06),
@@ -401,7 +416,8 @@ class _AvatarOption extends StatelessWidget {
                   width: 88,
                   height: 88,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Icon(Icons.person, size: 48),
+                  errorBuilder: (_, __, ___) =>
+                      const Icon(Icons.person, size: 48),
                 ),
               ),
             ),
@@ -412,7 +428,8 @@ class _AvatarOption extends StatelessWidget {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w900,
-              color: selected ? const Color(0xFF2E8B57) : const Color(0xFF4A5568),
+              color:
+                  selected ? const Color(0xFF2E8B57) : const Color(0xFF4A5568),
             ),
           ),
         ],
@@ -424,8 +441,7 @@ class _AvatarOption extends StatelessWidget {
 class _HomeContent extends StatelessWidget {
   final String nama;
   final String avatarAsset;
-  final int bintang;
-  final int poin;
+  final int nyawa;
   final String continueTitle;
   final double continueProgress;
   final VoidCallback onAvatarTap;
@@ -440,8 +456,7 @@ class _HomeContent extends StatelessWidget {
   const _HomeContent({
     required this.nama,
     required this.avatarAsset,
-    required this.bintang,
-    required this.poin,
+    required this.nyawa,
     required this.continueTitle,
     required this.continueProgress,
     required this.onAvatarTap,
@@ -462,7 +477,7 @@ class _HomeContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. Header Atas: Profil Avatar, Bintang, Poin Trophy, & Tombol Pengaturan
+          // 1. Header Atas: Profil Avatar, Nyawa, & Tombol Pengaturan
           Row(
             children: [
               InkWell(
@@ -473,7 +488,8 @@ class _HomeContent extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: Colors.white,
-                    border: Border.all(color: const Color(0xFFC8E6D7), width: 2),
+                    border:
+                        Border.all(color: const Color(0xFFC8E6D7), width: 2),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.05),
@@ -491,7 +507,8 @@ class _HomeContent extends StatelessWidget {
                         width: 44,
                         height: 44,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Icon(Icons.person, size: 26, color: Colors.grey),
+                        errorBuilder: (_, __, ___) => const Icon(Icons.person,
+                            size: 26, color: Colors.grey),
                       ),
                     ),
                   ),
@@ -511,30 +528,29 @@ class _HomeContent extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(Icons.star_rounded, size: 18, color: Color(0xFFFBBF24)),
-                        const SizedBox(width: 4),
-                        Text(
-                          '$bintang',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF2D3748),
-                          ),
-                        ),
-                      ],
+                    Text(
+                      'Ayo belajar & bertualang!',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF718096),
+                      ),
                     ),
                   ],
                 ),
               ),
-              // Pill Poin & Trophy
+              // Pill Nyawa
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                key: const ValueKey('home-lives'),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: const Color(0xFFC8E6D7), width: 1.5),
+                  border:
+                      Border.all(color: const Color(0xFFC8E6D7), width: 1.5),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.04),
@@ -545,19 +561,14 @@ class _HomeContent extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Image.asset(
-                      'assets/images/icon_trophy.png',
-                      width: 20,
-                      height: 20,
-                      errorBuilder: (_, __, ___) => const Icon(
-                        Icons.emoji_events,
-                        size: 20,
-                        color: Color(0xFFFBBF24),
-                      ),
+                    const Icon(
+                      Icons.favorite_rounded,
+                      size: 20,
+                      color: Colors.red,
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      '$poin',
+                      '$nyawa',
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w900,
@@ -573,7 +584,8 @@ class _HomeContent extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFC8E6D7), width: 1.5),
+                  border:
+                      Border.all(color: const Color(0xFFC8E6D7), width: 1.5),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.04),
@@ -583,7 +595,8 @@ class _HomeContent extends StatelessWidget {
                   ],
                 ),
                 child: IconButton(
-                  icon: const Icon(Icons.settings_rounded, color: Color(0xFF718096), size: 22),
+                  icon: const Icon(Icons.settings_rounded,
+                      color: Color(0xFF718096), size: 22),
                   onPressed: onSettingsTap,
                   padding: const EdgeInsets.all(8),
                   constraints: const BoxConstraints(),
@@ -654,7 +667,8 @@ class _HomeContent extends StatelessWidget {
                     top: 20,
                     right: 14,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
                       constraints: const BoxConstraints(maxWidth: 185),
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -725,7 +739,8 @@ class _HomeContent extends StatelessWidget {
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.bolt_rounded, size: 24, color: Color(0xFFFBBF24)),
+                  child: const Icon(Icons.bolt_rounded,
+                      size: 24, color: Color(0xFFFBBF24)),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
@@ -741,7 +756,7 @@ class _HomeContent extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Jawab 1 Soal Acak (+50 Poin)',
+                        'Jawab 1 Soal Acak & Jaga Nyawa',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
@@ -756,8 +771,10 @@ class _HomeContent extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFF26463),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
                     elevation: 2,
                   ),
                   child: const Text(
@@ -902,7 +919,8 @@ class _HomeContent extends StatelessWidget {
                     ],
                   ),
                   child: IconButton(
-                    icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
+                    icon: const Icon(Icons.play_arrow_rounded,
+                        color: Colors.white, size: 28),
                     padding: EdgeInsets.zero,
                     onPressed: onContinueTap,
                   ),
@@ -951,7 +969,8 @@ class _GameMenuCard extends StatelessWidget {
             end: Alignment.bottomCenter,
           ),
           borderRadius: BorderRadius.circular(24),
-          border: Border(bottom: BorderSide(color: borderBottomColor, width: 5)),
+          border:
+              Border(bottom: BorderSide(color: borderBottomColor, width: 5)),
           boxShadow: [
             BoxShadow(
               color: gradient[0].withOpacity(0.35),
@@ -1010,7 +1029,8 @@ class _GameMenuCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               decoration: BoxDecoration(
                 color: bannerColor.withOpacity(0.92),
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(19)),
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(19)),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1064,16 +1084,16 @@ class _EmbeddedLencanaTab extends StatelessWidget {
 class _EmbeddedProfilTab extends StatelessWidget {
   final String nama;
   final String avatarAsset;
-  final int bintang;
-  final int poin;
+  final int nyawa;
+  final int jumlahLencanaTerbuka;
   final VoidCallback onEditProfile;
   final VoidCallback onResetProgress;
 
   const _EmbeddedProfilTab({
     required this.nama,
     required this.avatarAsset,
-    required this.bintang,
-    required this.poin,
+    required this.nyawa,
+    required this.jumlahLencanaTerbuka,
     required this.onEditProfile,
     required this.onResetProgress,
   });
@@ -1118,7 +1138,8 @@ class _EmbeddedProfilTab extends StatelessWidget {
                   width: 120,
                   height: 120,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Icon(Icons.person, size: 70),
+                  errorBuilder: (_, __, ___) =>
+                      const Icon(Icons.person, size: 70),
                 ),
               ),
             ),
@@ -1162,10 +1183,11 @@ class _EmbeddedProfilTab extends StatelessWidget {
               children: [
                 Column(
                   children: [
-                    const Icon(Icons.star_rounded, color: Color(0xFFFBBF24), size: 30),
+                    const Icon(Icons.favorite_rounded,
+                        color: Colors.red, size: 30),
                     const SizedBox(height: 4),
                     Text(
-                      '$bintang',
+                      '$nyawa',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
@@ -1173,12 +1195,13 @@ class _EmbeddedProfilTab extends StatelessWidget {
                       ),
                     ),
                     const Text(
-                      'Bintang',
+                      'Nyawa',
                       style: TextStyle(fontSize: 12, color: Color(0xFF718096)),
                     ),
                   ],
                 ),
-                Container(width: 1.5, height: 40, color: const Color(0xFFE2E8F0)),
+                Container(
+                    width: 1.5, height: 40, color: const Color(0xFFE2E8F0)),
                 Column(
                   children: [
                     Image.asset(
@@ -1193,7 +1216,7 @@ class _EmbeddedProfilTab extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '$poin',
+                      '$jumlahLencanaTerbuka / ${StorageService.totalBadges}',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
@@ -1201,7 +1224,7 @@ class _EmbeddedProfilTab extends StatelessWidget {
                       ),
                     ),
                     const Text(
-                      'Poin',
+                      'Lencana',
                       style: TextStyle(fontSize: 12, color: Color(0xFF718096)),
                     ),
                   ],
@@ -1224,7 +1247,8 @@ class _EmbeddedProfilTab extends StatelessWidget {
                 backgroundColor: const Color(0xFF2E8B57),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
                 elevation: 0,
               ),
             ),
@@ -1242,7 +1266,8 @@ class _EmbeddedProfilTab extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFFB45353),
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
                 side: const BorderSide(color: Color(0xFFE7BDBD)),
               ),
             ),

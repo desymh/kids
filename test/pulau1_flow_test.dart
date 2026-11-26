@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:qalbukids/core/fsm_controller.dart';
 import 'package:qalbukids/core/storage_service.dart';
 import 'package:qalbukids/data/bank_soal.dart';
+import 'package:qalbukids/screens/daily_quiz_screen.dart';
 import 'package:qalbukids/screens/home_screen.dart';
 import 'package:qalbukids/screens/kuis_ujian_screen.dart';
 import 'package:qalbukids/screens/lencana_screen.dart';
@@ -21,7 +22,7 @@ Future<void> tapCurrentAnswer(
       ? correctAnswer
       : options.firstWhere((option) => option != correctAnswer);
 
-  await tester.tap(find.text(answer));
+  await tester.tap(find.widgetWithText(ElevatedButton, answer));
   await tester.pump();
 }
 
@@ -33,8 +34,8 @@ Future<void> answerCurrentQuestion(
   expect(
     find.text(
       correct
-          ? '✨ MasyaAllah, Benar! +10 Poin'
-          : '❌ Kurang Tepat! -5 Poin & -1 Nyawa',
+          ? '✨ MasyaAllah, Benar! +1 ❤️ Nyawa'
+          : '❌ Kurang Tepat! -1 ❤️ Nyawa',
     ),
     findsOneWidget,
   );
@@ -50,6 +51,30 @@ Future<void> finishPassedQuiz(WidgetTester tester) async {
   expect(find.text('Pembukaan Baru!'), findsOneWidget);
   await tester.tap(find.text('Kembali ke Tahapan'));
   await tester.pumpAndSettle();
+}
+
+Future<void> openScreenFromLauncher(
+  WidgetTester tester,
+  Widget screen,
+) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: ElevatedButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => screen),
+            ),
+            child: const Text('Buka Aktivitas'),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.tap(find.text('Buka Aktivitas'));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
 }
 
 void main() {
@@ -71,6 +96,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Hai, Naya!'), findsOneWidget);
+    expect(find.text('Ayo belajar & bertualang!'), findsOneWidget);
+    expect(find.text('🏅 0 / 6 Lencana'), findsNothing);
+    expect(find.textContaining('bintang'), findsNothing);
     expect(find.text('Lanjutkan: Pulau 1 - Tahap 1 (Pondasi Islam)'),
         findsOneWidget);
 
@@ -94,7 +122,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Kuis Pulau 1 - Tahap $tahap'), findsOneWidget);
-      expect(find.byIcon(Icons.favorite), findsNWidgets(3));
+      expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
       expect(find.text('30 s'), findsOneWidget);
 
       for (var question = 0; question < 5; question++) {
@@ -129,7 +157,8 @@ void main() {
       );
     }
 
-    expect(find.textContaining('Selesai · 3/3 bintang'), findsNWidgets(4));
+    expect(find.text('Selesai'), findsNWidgets(4));
+    expect(find.textContaining('bintang'), findsNothing);
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();
 
@@ -148,8 +177,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Hai, Naya!'), findsOneWidget);
-    expect(find.text('200'), findsOneWidget);
-    expect(find.text('12'), findsOneWidget);
+    expect(find.text('Ayo belajar & bertualang!'), findsOneWidget);
+    expect(find.text('🏅 1 / 6 Lencana'), findsNothing);
+    expect(find.textContaining('bintang'), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('home-lives')),
+        matching: find.text('25'),
+      ),
+      findsOneWidget,
+    );
+    expect(await storage.getNyawa(), 25);
     expect(
         find.text('Lanjutkan: Pulau 2 - Tahap 1 (Thaharah)'), findsOneWidget);
     expect((await storage.getLencana()).first, isTrue);
@@ -175,8 +213,9 @@ void main() {
     );
   });
 
-  testWidgets('session points update instantly and never fall below zero',
+  testWidgets('quiz rewards correct answers and persists cumulative lives',
       (tester) async {
+    await storage.setTotalPoin(0);
     await tester.pumpWidget(
       const MaterialApp(
         home: KuisUjianScreen(pulauId: 1, tahap: 1),
@@ -184,31 +223,174 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    const answers = [true, false, false, false];
-    const expectedPoints = [10, 5, 0, 0];
+    expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
+    const answers = [true, false, false, false, false];
+    const expectedLives = [6, 5, 4, 3, 2];
     for (var answer = 0; answer < answers.length; answer++) {
       await tapCurrentAnswer(tester, correct: answers[answer]);
-      expect(find.text('${expectedPoints[answer]} Poin'), findsOneWidget);
       expect(
-        find.text(
-          answers[answer]
-              ? '✨ MasyaAllah, Benar! +10 Poin'
-              : '❌ Kurang Tepat! -5 Poin & -1 Nyawa',
+        find.descendant(
+          of: find.byKey(const ValueKey('quiz-lives')),
+          matching: find.text('${expectedLives[answer]}'),
         ),
         findsOneWidget,
       );
+      expect(
+        find.text(
+          answers[answer]
+              ? '✨ MasyaAllah, Benar! +1 ❤️ Nyawa'
+              : '❌ Kurang Tepat! -1 ❤️ Nyawa',
+        ),
+        findsOneWidget,
+      );
+      expect(await storage.getNyawa(), expectedLives[answer]);
       await tester.pump(const Duration(seconds: 1));
       await tester.pumpAndSettle();
     }
 
     expect(find.text('BELUM LULUS'), findsOneWidget);
-    expect(find.textContaining('Nyawa: 0'), findsOneWidget);
+    expect(find.textContaining('Nyawa: 2'), findsOneWidget);
+    expect(find.textContaining('Bintang:'), findsNothing);
     expect(
       await storage.getLevelState(ProgressionFSM.stageKey(1, 2)),
       LevelState.locked,
     );
     expect(await storage.getTotalPoin(), 0);
     expect(await storage.getTotalBintang(), 0);
+  });
+
+  testWidgets('quiz fails immediately when the last life is lost',
+      (tester) async {
+    await storage.setNyawa(1);
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: KuisUjianScreen(pulauId: 1, tahap: 1),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tapCurrentAnswer(tester, correct: false);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+
+    const message =
+        'Nyawamu habis (0 ❤️)! Yuk baca materi di Menu Belajar atau selesaikan Simulasi Praktik untuk menambah nyawa.';
+    expect(find.text('BELUM LULUS'), findsOneWidget);
+    expect(find.textContaining(message), findsOneWidget);
+    expect(find.textContaining('Nyawa: 0'), findsOneWidget);
+    expect(await storage.getNyawa(), 0);
+    expect(
+      await storage.getLevelState(ProgressionFSM.stageKey(1, 2)),
+      LevelState.locked,
+    );
+  });
+
+  testWidgets('quiz and daily mission block entry when lives are empty',
+      (tester) async {
+    await storage.setNyawa(0);
+    const message =
+        'Nyawamu habis (0 ❤️)! Yuk baca materi di Menu Belajar atau selesaikan Simulasi Praktik untuk menambah nyawa.';
+
+    for (final screen in <Widget>[
+      const KuisUjianScreen(pulauId: 1, tahap: 1),
+      const DailyQuizScreen(),
+    ]) {
+      await openScreenFromLauncher(tester, screen);
+      expect(find.text(message), findsOneWidget);
+      await tester.tap(find.text('Mengerti'));
+      await tester.pumpAndSettle();
+      expect(find.text('Buka Aktivitas'), findsOneWidget);
+      expect(await storage.getNyawa(), 0);
+    }
+  });
+
+  testWidgets('daily mission deducts a shared life without awarding points',
+      (tester) async {
+    await storage.setTotalPoin(7);
+    await storage.setNyawa(2);
+    await tester.pumpWidget(const MaterialApp(home: DailyQuizScreen()));
+    await tester.pumpAndSettle();
+
+    await tapCurrentAnswer(tester, correct: false);
+    await tester.pumpAndSettle();
+
+    expect(find.text('❌ Jawaban kurang tepat! -1 ❤️ Nyawa'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('daily-lives')),
+        matching: find.text('1'),
+      ),
+      findsOneWidget,
+    );
+    expect(await storage.getNyawa(), 1);
+    expect(await storage.getTotalPoin(), 7);
+  });
+
+  testWidgets('daily mission adds three cumulative lives without points',
+      (tester) async {
+    await storage.setTotalPoin(7);
+    await storage.setNyawa(2);
+    await tester.pumpWidget(const MaterialApp(home: DailyQuizScreen()));
+    await tester.pumpAndSettle();
+
+    await tapCurrentAnswer(tester, correct: true);
+    await tester.pumpAndSettle();
+
+    expect(find.text('🎉 Misi Harian Berhasil! +3 ❤️ Nyawa'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('daily-lives')),
+        matching: find.text('5'),
+      ),
+      findsOneWidget,
+    );
+    expect(await storage.getNyawa(), 5);
+    expect(await storage.getTotalPoin(), 7);
+  });
+
+  testWidgets(
+      'Home refreshes lives after learning and simulation routes return',
+      (tester) async {
+    await storage.setNyawa(1);
+    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('home-lives')),
+        matching: find.text('1'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(find.text('SIMULASI PRAKTIK'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('SIMULASI PRAKTIK'));
+    await tester.pumpAndSettle();
+    await storage.tambahNyawa(2);
+    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('home-lives')),
+        matching: find.text('3'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(find.text('MENU BELAJAR'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('MENU BELAJAR'));
+    await tester.pumpAndSettle();
+    await storage.tambahNyawa(2);
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('home-lives')),
+        matching: find.text('5'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('badge collection refreshes states and opens earned details',
@@ -221,6 +403,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('2/6'), findsOneWidget);
+    expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.star), findsNothing);
     expect(find.text('TERBUKA'), findsNWidgets(2));
     expect(find.text('Tamatkan Pulau 2 untuk membuka'), findsOneWidget);
     expect(

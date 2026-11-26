@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../data/bank_soal.dart';
 import '../core/fsm_controller.dart';
@@ -19,9 +18,8 @@ class _KuisUjianScreenState extends State<KuisUjianScreen> {
   final StorageService _storage = StorageService();
   List<Map<String, dynamic>> _soal = [];
   int _index = 0;
-  int _nyawa = 3;
+  int _nyawa = StorageService.defaultNyawa;
   int _benar = 0;
-  int _poinSesi = 0;
   String? _feedbackMessage;
   bool _feedbackCorrect = false;
   Timer? _timer;
@@ -32,10 +30,44 @@ class _KuisUjianScreenState extends State<KuisUjianScreen> {
   String? _soalError;
   bool _showResult = false;
 
+  static const _pesanNyawaHabis =
+      'Nyawamu habis (0 ❤️)! Yuk baca materi di Menu Belajar atau selesaikan Simulasi Praktik untuk menambah nyawa.';
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _prepareQuiz();
+    });
+  }
+
+  Future<void> _prepareQuiz() async {
+    final nyawa = await _storage.getNyawa();
+    if (!mounted) return;
+    if (nyawa <= 0) {
+      await _showNyawaHabisDialog();
+      if (mounted) Navigator.pop(context);
+      return;
+    }
+    setState(() => _nyawa = nyawa);
     _loadSoal();
+  }
+
+  Future<void> _showNyawaHabisDialog() async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('❤️ Nyawa Habis'),
+        content: const Text(_pesanNyawaHabis),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Mengerti'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _loadSoal() {
@@ -76,29 +108,32 @@ class _KuisUjianScreenState extends State<KuisUjianScreen> {
     });
   }
 
-  void _jawab(String? jawaban) {
+  Future<void> _jawab(String? jawaban) async {
     if (_answered || _showResult || _soal.isEmpty || !mounted) return;
     _timer?.cancel();
-    setState(() => _answered = true);
+    setState(() {
+      _answered = true;
+      _selectedOpsi = jawaban;
+    });
 
     final question = _soal[_index];
     final jawabanBenar = question['jawabanBenar'] as int;
     final opsi = (question['opsi'] as List).cast<String>();
     final selectedIndex = jawaban == null ? -1 : opsi.indexOf(jawaban);
-
     final isCorrect = selectedIndex == jawabanBenar;
+
+    final sisaNyawa = isCorrect
+        ? await _storage.tambahNyawa(1)
+        : await _storage.kurangiNyawa(1);
+    if (!mounted) return;
     setState(() {
-      _answered = true;
-      _selectedOpsi = jawaban;
+      _nyawa = sisaNyawa;
       if (isCorrect) {
         _benar++;
-        _poinSesi += 10;
-        _feedbackMessage = '✨ MasyaAllah, Benar! +10 Poin';
+        _feedbackMessage = '✨ MasyaAllah, Benar! +1 ❤️ Nyawa';
         _feedbackCorrect = true;
       } else {
-        _poinSesi = math.max(0, _poinSesi - 5);
-        _nyawa = math.max(0, _nyawa - 1);
-        _feedbackMessage = '❌ Kurang Tepat! -5 Poin & -1 Nyawa';
+        _feedbackMessage = '❌ Kurang Tepat! -1 ❤️ Nyawa';
         _feedbackCorrect = false;
       }
     });
@@ -142,9 +177,6 @@ class _KuisUjianScreenState extends State<KuisUjianScreen> {
       }
     }
 
-    final poinDidapat = _poinSesi;
-    await _storage.addTotalPoin(poinDidapat);
-
     var progression = const StageProgressionResult(passed: false);
     if (lulus) {
       final fsm = ProgressionFSM(initialStates: await _storage.getFsmStates());
@@ -168,14 +200,12 @@ class _KuisUjianScreenState extends State<KuisUjianScreen> {
     final retry = await _showResultDialog(
       skor: skor,
       total: total,
-      bintang: bintang,
-      poinDidapat: poinDidapat,
       lulus: lulus,
       progression: progression,
     );
     if (!mounted) return;
     if (retry) {
-      _reset();
+      await _reset();
       return;
     }
 
@@ -191,8 +221,6 @@ class _KuisUjianScreenState extends State<KuisUjianScreen> {
   Future<bool> _showResultDialog({
     required int skor,
     required int total,
-    required int bintang,
-    required int poinDidapat,
     required bool lulus,
     required StageProgressionResult progression,
   }) async {
@@ -207,9 +235,8 @@ class _KuisUjianScreenState extends State<KuisUjianScreen> {
             content: Text(
               'Skor: $skor\n'
               'Benar: $_benar/$total\n'
-              'Nyawa: $_nyawa\n'
-              'Bintang: $bintang\n'
-              'Poin: +$poinDidapat',
+              'Nyawa: $_nyawa'
+              '${_nyawa <= 0 ? '\n$_pesanNyawaHabis' : ''}',
             ),
             actions: [
               TextButton(
@@ -411,14 +438,20 @@ class _KuisUjianScreenState extends State<KuisUjianScreen> {
     );
   }
 
-  void _reset() {
+  Future<void> _reset() async {
     _timer?.cancel();
     _feedbackTimer?.cancel();
+    final nyawa = await _storage.getNyawa();
+    if (!mounted) return;
+    if (nyawa <= 0) {
+      await _showNyawaHabisDialog();
+      if (mounted) Navigator.pop(context);
+      return;
+    }
     setState(() {
       _index = 0;
-      _nyawa = 3;
+      _nyawa = nyawa;
       _benar = 0;
-      _poinSesi = 0;
       _feedbackMessage = null;
       _feedbackCorrect = false;
       _answered = false;
@@ -501,40 +534,29 @@ class _KuisUjianScreenState extends State<KuisUjianScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: List.generate(
-                          3,
-                          (i) => Icon(
-                            Icons.favorite,
-                            size: 28,
-                            color:
-                                i < _nyawa ? Colors.red[500] : Colors.grey[300],
-                          ),
-                        ),
-                      ),
                       Container(
-                        key: const ValueKey('quiz-session-points'),
+                        key: const ValueKey('quiz-lives'),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
+                          horizontal: 12,
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.amber[100],
+                          color: Colors.red[50],
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.star_rounded,
-                              size: 18,
-                              color: Colors.amber[700],
+                            const Icon(
+                              Icons.favorite_rounded,
+                              size: 20,
+                              color: Colors.red,
                             ),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: 6),
                             Text(
-                              '$_poinSesi Poin',
+                              '$_nyawa',
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w900,
                                 color: Colors.grey[800],
                               ),

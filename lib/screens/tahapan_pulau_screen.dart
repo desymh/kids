@@ -16,7 +16,6 @@ class _TahapanPulauScreenState extends State<TahapanPulauScreen> {
   final StorageService _storage = StorageService();
   final List<String> _tahapLabels = ['Tahap 1: Pemula', 'Tahap 2: Dasar', 'Tahap 3: Lanjutan', 'Tahap 4: Ujian Pulau'];
   final Map<int, LevelState> _status = {};
-  final Map<int, int> _stars = {};
 
   @override
   void initState() {
@@ -29,7 +28,6 @@ class _TahapanPulauScreenState extends State<TahapanPulauScreen> {
     for (var tahap = 1; tahap <= StorageService.stagesPerIsland; tahap++) {
       final key = ProgressionFSM.stageKey(widget.pulauId, tahap);
       _status[tahap] = states[key] ?? LevelState.locked;
-      _stars[tahap] = await _storage.getStageStars(widget.pulauId, tahap);
     }
     if (!mounted) return;
     setState(() {});
@@ -101,7 +99,7 @@ class _TahapanPulauScreenState extends State<TahapanPulauScreen> {
                             Text(_tahapLabels[i], style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: unlocked ? Colors.teal[900] : Colors.grey[500])),
                             if (completed)
                               Text(
-                                'Selesai · ${_stars[tahap] ?? 0}/3 bintang',
+                                'Selesai',
                                 style: TextStyle(fontSize: 12, color: Colors.teal[700]),
                               ),
                           ],
