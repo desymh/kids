@@ -35,16 +35,8 @@ class StorageService {
           sp.getInt('totalBintang') ?? sp.getInt('bintang') ?? 0);
     }
 
-    if (!sp.containsKey(keyLencana)) {
-      final legacyList = sp.getStringList('lencana');
-      final badges = List<bool>.filled(totalBadges, false);
-      for (var i = 0; i < totalBadges; i++) {
-        badges[i] = legacyList != null && i < legacyList.length
-            ? legacyList[i] == 'true'
-            : sp.getBool('lencana_${i + 1}') ?? false;
-      }
-      await setLencana(badges);
-    }
+    final badges = await getLencana();
+    await setLencana(badges);
 
     for (var pulau = 1; pulau <= totalIslands; pulau++) {
       final islandKey = ProgressionFSM.islandKey(pulau);
@@ -123,6 +115,13 @@ class StorageService {
     await sp.setInt(keyTotalPoin, value < 0 ? 0 : value);
   }
 
+  Future<int> addTotalPoin(int value) async {
+    final current = await getTotalPoin();
+    final updated = current + value;
+    await setTotalPoin(updated);
+    return updated < 0 ? 0 : updated;
+  }
+
   Future<int> getTotalBintang() async {
     final sp = await SharedPreferences.getInstance();
     return sp.getInt(keyTotalBintang) ?? 0;
@@ -148,6 +147,8 @@ class StorageService {
   Future<void> setLevelState(String key, LevelState state) async {
     final sp = await SharedPreferences.getInstance();
     await sp.setString(key, state.name);
+    await sp.setBool('${key}_completed', state == LevelState.completed);
+    await sp.setBool('${key}_unlocked', state != LevelState.locked);
   }
 
   Future<Map<String, LevelState>> getFsmStates() async {
@@ -166,9 +167,8 @@ class StorageService {
   }
 
   Future<void> saveFsmStates(Map<String, LevelState> states) async {
-    final sp = await SharedPreferences.getInstance();
     for (final entry in states.entries) {
-      await sp.setString(entry.key, entry.value.name);
+      await setLevelState(entry.key, entry.value);
     }
     final badges = List<bool>.filled(totalBadges, false);
     for (var pulau = 1; pulau <= totalIslands; pulau++) {
@@ -192,9 +192,22 @@ class StorageService {
     final stored = sp.getStringList(keyLencana);
     final badges = List<bool>.filled(totalBadges, false);
     for (var i = 0; i < totalBadges; i++) {
-      badges[i] = stored != null && i < stored.length
-          ? stored[i] == 'true'
-          : sp.getBool('lencana_${i + 1}') ?? false;
+      final raw = sp.get('lencana_${i + 1}');
+      final badgeState = sp.get(ProgressionFSM.badgeKey(i + 1));
+      final unlockedByState = badgeState == true ||
+          badgeState == LevelState.unlocked.name ||
+          badgeState == LevelState.completed.name;
+      if (raw is bool) {
+        badges[i] = raw || unlockedByState;
+      } else if (raw is String) {
+        badges[i] = raw == 'true' ||
+            raw == LevelState.unlocked.name ||
+            raw == LevelState.completed.name ||
+            unlockedByState;
+      } else {
+        badges[i] = unlockedByState ||
+            (stored != null && i < stored.length ? stored[i] == 'true' : false);
+      }
     }
     return badges;
   }
@@ -207,6 +220,14 @@ class StorageService {
     }
     await sp.setStringList(keyLencana,
         normalized.map((unlocked) => unlocked ? 'true' : 'false').toList());
+    for (var i = 0; i < totalBadges; i++) {
+      final pulauId = i + 1;
+      await sp.setBool('lencana_$pulauId', normalized[i]);
+      await setLevelState(
+        ProgressionFSM.badgeKey(pulauId),
+        normalized[i] ? LevelState.unlocked : LevelState.locked,
+      );
+    }
   }
 
   Future<int> getStageStars(int pulauId, int tahap) async {

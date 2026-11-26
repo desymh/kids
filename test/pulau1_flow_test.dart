@@ -5,9 +5,10 @@ import 'package:qalbukids/core/storage_service.dart';
 import 'package:qalbukids/data/bank_soal.dart';
 import 'package:qalbukids/screens/home_screen.dart';
 import 'package:qalbukids/screens/kuis_ujian_screen.dart';
+import 'package:qalbukids/screens/lencana_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-Future<void> answerCurrentQuestion(
+Future<void> tapCurrentAnswer(
   WidgetTester tester, {
   required bool correct,
 }) async {
@@ -22,6 +23,22 @@ Future<void> answerCurrentQuestion(
 
   await tester.tap(find.text(answer));
   await tester.pump();
+}
+
+Future<void> answerCurrentQuestion(
+  WidgetTester tester, {
+  required bool correct,
+}) async {
+  await tapCurrentAnswer(tester, correct: correct);
+  expect(
+    find.text(
+      correct
+          ? '✨ MasyaAllah, Benar! +10 Poin'
+          : '❌ Kurang Tepat! -5 Poin & -1 Nyawa',
+    ),
+    findsOneWidget,
+  );
+  expect(find.byKey(const ValueKey('quiz-feedback-banner')), findsOneWidget);
   await tester.pump(const Duration(seconds: 1));
   await tester.pumpAndSettle();
 }
@@ -48,12 +65,14 @@ void main() {
     await storage.init();
   });
 
-  testWidgets('Pulau 1 is playable from home through Badge 1 unlock', (tester) async {
+  testWidgets('Pulau 1 is playable from home through Badge 1 unlock',
+      (tester) async {
     await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
     await tester.pumpAndSettle();
 
     expect(find.text('Hai, Naya!'), findsOneWidget);
-    expect(find.text('Lanjutkan: Pulau 1 - Tahap 1 (Pondasi Islam)'), findsOneWidget);
+    expect(find.text('Lanjutkan: Pulau 1 - Tahap 1 (Pondasi Islam)'),
+        findsOneWidget);
 
     await tester.ensureVisible(find.text('GAME UJIAN'));
     await tester.pumpAndSettle();
@@ -78,7 +97,7 @@ void main() {
       expect(find.byIcon(Icons.favorite), findsNWidgets(3));
       expect(find.text('30 s'), findsOneWidget);
 
-      for (var question = 0; question < 4; question++) {
+      for (var question = 0; question < 5; question++) {
         await answerCurrentQuestion(tester, correct: true);
       }
 
@@ -86,9 +105,19 @@ void main() {
         expect(find.text('LULUS!'), findsOneWidget);
         await tester.tap(find.text('Lihat Pembukaan'));
         await tester.pumpAndSettle();
-        expect(find.text('Pulau 2 (Thaharah) telah terbuka.'), findsOneWidget);
-        expect(find.text('Lencana Duta Rukun Islam telah terbuka.'), findsOneWidget);
-        await tester.tap(find.text('Kembali ke Tahapan'));
+        expect(
+          find.text('🎉 SELAMAT! LENCANA BARU TERBUKA! 🎉'),
+          findsOneWidget,
+        );
+        expect(find.text('Duta Pondasi Islam'), findsOneWidget);
+        expect(
+          find.text(
+            'Hebat! Kamu telah menamatkan Pulau 1 dan membuka Pulau 2!',
+          ),
+          findsOneWidget,
+        );
+        expect(find.byType(Image), findsOneWidget);
+        await tester.tap(find.text('Klaim Lencana & Lanjut'));
         await tester.pumpAndSettle();
       } else {
         await finishPassedQuiz(tester);
@@ -119,24 +148,35 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Hai, Naya!'), findsOneWidget);
-    expect(find.text('160'), findsOneWidget);
+    expect(find.text('200'), findsOneWidget);
     expect(find.text('12'), findsOneWidget);
-    expect(find.text('Lanjutkan: Pulau 2 - Tahap 1 (Thaharah)'), findsOneWidget);
+    expect(
+        find.text('Lanjutkan: Pulau 2 - Tahap 1 (Thaharah)'), findsOneWidget);
     expect((await storage.getLencana()).first, isTrue);
+
+    final preferences = await SharedPreferences.getInstance();
+    expect(preferences.getBool('lencana_1'), isTrue);
+    expect(preferences.getBool('pulau_2_unlocked'), isTrue);
 
     await tester.tap(find.text('Lencana'));
     await tester.pumpAndSettle();
     expect(find.text('1/6'), findsOneWidget);
+    expect(find.text('TERBUKA'), findsOneWidget);
 
-    final firstBadge = find.text('Duta Rukun\nIslam');
+    final firstBadge = find.byKey(const ValueKey('badge-card-1'));
     final firstBadgeOpacity = find.ancestor(
       of: firstBadge,
       matching: find.byType(Opacity),
     );
     expect(tester.widget<Opacity>(firstBadgeOpacity).opacity, 1.0);
+    expect(
+      tester.widget<InkWell>(firstBadge).onTap,
+      isNotNull,
+    );
   });
 
-  testWidgets('wrong answers consume hearts and do not unlock the next stage', (tester) async {
+  testWidgets('session points update instantly and never fall below zero',
+      (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: KuisUjianScreen(pulauId: 1, tahap: 1),
@@ -144,16 +184,66 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    for (var answer = 0; answer < 3; answer++) {
-      await answerCurrentQuestion(tester, correct: false);
+    const answers = [true, false, false, false];
+    const expectedPoints = [10, 5, 0, 0];
+    for (var answer = 0; answer < answers.length; answer++) {
+      await tapCurrentAnswer(tester, correct: answers[answer]);
+      expect(find.text('${expectedPoints[answer]} Poin'), findsOneWidget);
+      expect(
+        find.text(
+          answers[answer]
+              ? '✨ MasyaAllah, Benar! +10 Poin'
+              : '❌ Kurang Tepat! -5 Poin & -1 Nyawa',
+        ),
+        findsOneWidget,
+      );
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
     }
 
     expect(find.text('BELUM LULUS'), findsOneWidget);
+    expect(find.textContaining('Nyawa: 0'), findsOneWidget);
     expect(
       await storage.getLevelState(ProgressionFSM.stageKey(1, 2)),
       LevelState.locked,
     );
     expect(await storage.getTotalPoin(), 0);
     expect(await storage.getTotalBintang(), 0);
+  });
+
+  testWidgets('badge collection refreshes states and opens earned details',
+      (tester) async {
+    await storage.setLencana([true, false, true, false, false, false]);
+    final lencanaKey = GlobalKey<LencanaScreenState>();
+    await tester.pumpWidget(
+      MaterialApp(home: LencanaScreen(key: lencanaKey)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('2/6'), findsOneWidget);
+    expect(find.text('TERBUKA'), findsNWidgets(2));
+    expect(find.text('Tamatkan Pulau 2 untuk membuka'), findsOneWidget);
+    expect(
+      tester.widget<InkWell>(find.byKey(const ValueKey('badge-card-2'))).onTap,
+      isNull,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('badge-card-1')));
+    await tester.pumpAndSettle();
+    expect(find.text('Penghargaan Pulau 1'), findsOneWidget);
+    await tester.tap(find.text('Tutup'));
+    await tester.pumpAndSettle();
+
+    await storage.setLencana([true, true, true, false, false, false]);
+    await lencanaKey.currentState!.refresh();
+    await tester.pumpAndSettle();
+
+    expect(find.text('3/6'), findsOneWidget);
+    expect(find.text('TERBUKA'), findsNWidgets(3));
+    expect(find.text('Tamatkan Pulau 2 untuk membuka'), findsNothing);
+    expect(
+      tester.widget<InkWell>(find.byKey(const ValueKey('badge-card-2'))).onTap,
+      isNotNull,
+    );
   });
 }

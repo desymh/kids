@@ -29,7 +29,7 @@ class ProgressionFSM {
 
   static String islandKey(int pulauId) => 'pulau_$pulauId';
 
-  static String badgeKey(int pulauId) => 'lencana_$pulauId';
+  static String badgeKey(int pulauId) => 'badge_pulau_$pulauId';
 
   Map<String, LevelState> get states => Map<String, LevelState>.from(_states);
 

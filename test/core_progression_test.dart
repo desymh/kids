@@ -55,20 +55,51 @@ void main() {
           source.first['opsi'], ['Benar', 'Salah', 'Benar', 'Lain', 'Lain 2']);
     });
 
-    test('Pulau 1 has four unique questions with four unique options per stage',
-        () {
-      for (var tahap = 1; tahap <= 4; tahap++) {
-        final questions = BankSoal.getSoalTahap(1, tahap);
-        expect(questions, hasLength(4));
-        expect(
-            questions.map((question) => question['id']).toSet(), hasLength(4));
-        for (final question in questions) {
-          final options = (question['opsi'] as List).cast<String>();
-          expect(options, hasLength(4));
-          expect(options.toSet(), hasLength(4));
-          expect(question['jawabanBenar'], inInclusiveRange(0, 3));
+    test('all six islands provide valid shuffled question pools', () {
+      for (var pulau = 1; pulau <= StorageService.totalIslands; pulau++) {
+        final expectedStageCount = pulau == 6 ? 8 : 5;
+        for (var tahap = 1; tahap <= StorageService.stagesPerIsland; tahap++) {
+          final questions = BankSoal.getSoalTahap(pulau, tahap);
+          expect(questions, hasLength(expectedStageCount));
+          expect(
+            questions.map((question) => question['id'].toString()).toSet(),
+            hasLength(expectedStageCount),
+          );
+          for (final question in questions) {
+            final options = (question['opsi'] as List).cast<String>();
+            expect(options, hasLength(4));
+            expect(options.toSet(), hasLength(4));
+            expect(question['jawabanBenar'], inInclusiveRange(0, 3));
+            if (pulau == 6) {
+              expect(question['pulauId'], inInclusiveRange(1, 5));
+            } else {
+              expect(question['pulauId'], pulau);
+              expect(question['tahap'], tahap);
+            }
+          }
         }
+
+        final islandQuestions = BankSoal.getSoalPulau(pulau);
+        expect(islandQuestions, hasLength(pulau == 6 ? 8 : 6));
+        expect(
+          islandQuestions.map((question) => question['id'].toString()).toSet(),
+          hasLength(islandQuestions.length),
+        );
       }
+    });
+
+    test('badge labels match the six island awards', () {
+      expect(
+        BankSoal.badgeNames.map((name) => name.replaceAll('\n', ' ')),
+        [
+          'Duta Pondasi Islam',
+          'Ahli Thaharah & Bersuci',
+          'Santri Taat Shalat',
+          'Pejuang Puasa Ramadhan',
+          'Anak Shalih & Beradab',
+          'Santri Cilik Teladan',
+        ],
+      );
     });
   });
 
@@ -249,6 +280,40 @@ void main() {
       await storage.setStageStars(1, 1, 1);
       expect(await storage.recalculateTotalStars(), 3);
       expect(await storage.getTotalBintang(), 3);
+
+      final preferences = await SharedPreferences.getInstance();
+      expect(preferences.getBool('lencana_1'), isTrue);
+      expect(preferences.getString(ProgressionFSM.badgeKey(1)), 'unlocked');
+    });
+
+    test('synchronizes legacy unlock keys when FSM states are saved', () async {
+      SharedPreferences.setMockInitialValues({});
+      final storage = StorageService();
+      await storage.init();
+      final states = await storage.getFsmStates();
+      states[ProgressionFSM.islandKey(2)] = LevelState.unlocked;
+      states[ProgressionFSM.stageKey(2, 1)] = LevelState.unlocked;
+      states[ProgressionFSM.badgeKey(1)] = LevelState.unlocked;
+
+      await storage.saveFsmStates(states);
+
+      final preferences = await SharedPreferences.getInstance();
+      expect(preferences.getBool('pulau_2_unlocked'), isTrue);
+      expect(preferences.getBool('pulau_2_completed'), isFalse);
+      expect(preferences.getBool('pulau_2_tahap_1_unlocked'), isTrue);
+      expect(preferences.getBool('lencana_1'), isTrue);
+    });
+
+    test('adds session points and clamps the persisted total at zero',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final storage = StorageService();
+      await storage.init();
+
+      expect(await storage.addTotalPoin(10), 10);
+      expect(await storage.addTotalPoin(-5), 5);
+      expect(await storage.addTotalPoin(-20), 0);
+      expect(await storage.getTotalPoin(), 0);
     });
   });
 }
