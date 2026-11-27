@@ -137,26 +137,33 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('✨ MasyaAllah, Benar! +1 ❤️ Nyawa'), findsOneWidget);
       await tester.tap(find.text(question == 5 ? 'Lihat Hasil' : 'Lanjut'));
-      await tester.pumpAndSettle();
+      if (question == 5) {
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+      } else {
+        await tester.pumpAndSettle();
+      }
     }
 
-    expect(find.text('Lencana Terbuka!'), findsOneWidget);
-    expect(find.text('Duta Pondasi Islam'), findsOneWidget);
-    expect(find.textContaining('Pulau 2 juga terbuka!'), findsOneWidget);
     expect(
-      find.byKey(const ValueKey('adventure-gate-open-notification')),
+      find.byKey(const ValueKey('adventure-island-success-notification')),
       findsOneWidget,
     );
-    expect(
-      find.text('Gerbang terbuka! Lanjut ke pulau berikutnya.'),
-      findsOneWidget,
-    );
-    expect(find.widgetWithText(ElevatedButton, 'Lanjut ke Pulau 2'),
+    expect(find.text('Berhasil! Pulau 1 selesai!'), findsOneWidget);
+    expect(find.textContaining('Duta Pondasi Islam terbuka.'), findsOneWidget);
+    expect(find.textContaining('Gerbang terbuka! Masuk ke Pulau 2'),
         findsOneWidget);
-    await tester.tap(find.text('Kembali ke Peta'));
-    await tester.pumpAndSettle();
+    expect(
+        find.widgetWithText(ElevatedButton, 'Lanjut ke Pulau 2'), findsNothing);
 
-    expect(find.text('Peta Petualangan'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 2800));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final nextAdventure =
+        tester.widget<AdventureScreen>(find.byType(AdventureScreen));
+    expect(nextAdventure.pulauId, 2);
+    expect(nextAdventure.namaPulau, 'Thaharah');
     expect(
       await storage.getLevelState(ProgressionFSM.islandKey(1)),
       LevelState.completed,
@@ -165,6 +172,10 @@ void main() {
       await storage.getLevelState(ProgressionFSM.islandKey(2)),
       LevelState.unlocked,
     );
+
+    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('Peta Petualangan'), findsOneWidget);
     expect(find.byIcon(Icons.lock), findsNWidgets(4));
 
     await tester.tap(find.byIcon(Icons.arrow_back));

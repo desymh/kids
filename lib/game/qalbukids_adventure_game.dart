@@ -19,10 +19,10 @@ class QalbuKidsAdventureGame extends FlameGame {
   static const double guardianHeightRatio = 0.52;
   static const double gateHeightRatio = 0.74;
   static const double playerStartX = 130;
-  static const double gateX = 1700;
+  static const double gateX = 1900;
   static const double gateGroundOffset = 6;
   static const double actorGroundOffset = 4;
-  static const double guardianGateOffset = 85;
+  static const double guardianGateGap = 40;
   static const double guardianCollisionDistance = 45;
   static const double roadHeightRatio = 0.28;
   static const double roadTileOverlap = 16;
@@ -55,7 +55,6 @@ class QalbuKidsAdventureGame extends FlameGame {
   // Kept for compatibility with existing adventure visual tests.
   static const int backgroundTileCount = 5;
   static const double backgroundTileOverlap = roadTileOverlap;
-  static const double guardianGateOffsetRatio = guardianGateOffset / gateX;
 
   final void Function() onGateTriggered;
   final void Function()? onGateOpened;
@@ -189,7 +188,7 @@ class QalbuKidsAdventureGame extends FlameGame {
         ),
       ),
       position: Vector2(gateX, _groundY + gateGroundOffset),
-    )..flipHorizontallyAroundCenter();
+    );
     _player = AdventurePlayer(
       idleAnimation: idleAnimation,
       walkAnimation: walkAnimation,
@@ -207,7 +206,7 @@ class QalbuKidsAdventureGame extends FlameGame {
         ),
       ),
       position: Vector2(
-        gateX - guardianGateOffset,
+        gateX,
         _groundY + actorGroundOffset,
       ),
     );
@@ -252,12 +251,27 @@ class QalbuKidsAdventureGame extends FlameGame {
   }
 
   void completeQuiz(int skor) {
+    final wasQuizActive = fsm.gateState == GateState.quizActive;
     final opened = fsm.finishQuiz(skor: skor);
     if (opened) {
       _gate.sprite = _openGateSprite;
+    } else if (wasQuizActive) {
+      _resetPlayerToStart();
     }
     _player.setMovementState(fsm.playerState);
     if (opened) onGateOpened?.call();
+  }
+
+  void _resetPlayerToStart() {
+    stopMoving();
+    _player.position.setValues(playerStartX, _player.groundY);
+    _player.faceDirection(1);
+    _player.setWalkBob(0);
+    _walkClock = 0;
+    _parallaxVelocityX = 0;
+    _skyParallax.parallax?.baseVelocity.setValues(0, 0);
+    _wasTouchingGuardian = false;
+    _updateCamera();
   }
 
   void cancelQuiz() {
@@ -348,13 +362,13 @@ class QalbuKidsAdventureGame extends FlameGame {
       aspectRatio: _gateAspectRatio,
     );
 
-    _guardian.position.setValues(
-      gateX - guardianGateOffset,
-      groundY + actorGroundOffset,
-    );
     _guardian.resizeToHeight(
       screenHeight * guardianHeightRatio,
       aspectRatio: _guardianAspectRatio,
+    );
+    _guardian.position.setValues(
+      gateX - _gate.size.x / 2 - _guardian.size.x / 2 - guardianGateGap,
+      groundY + actorGroundOffset,
     );
 
     for (final tile in _backgroundTiles) {

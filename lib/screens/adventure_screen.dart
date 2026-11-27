@@ -44,13 +44,13 @@ class AdventureScreen extends StatefulWidget {
 class _AdventureScreenState extends State<AdventureScreen> {
   static const _pesanNyawaHabis =
       'Nyawamu habis (0 ❤️)! Yuk baca materi di Menu Belajar atau selesaikan Simulasi Praktik untuk menambah nyawa.';
+  static const _islandCompletionDelay = Duration(milliseconds: 2800);
 
   final StorageService _storage = StorageService();
   late final QalbuKidsAdventureGame _game;
   int _nyawa = StorageService.defaultNyawa;
   bool _showingQuiz = false;
   bool _returningToMap = false;
-  bool _gateOpened = false;
 
   @override
   void initState() {
@@ -61,7 +61,6 @@ class _AdventureScreenState extends State<AdventureScreen> {
     ]));
     _game = QalbuKidsAdventureGame(
       onGateTriggered: _handleGateTriggered,
-      onGateOpened: _handleGateOpened,
     );
     unawaited(_loadNyawa());
   }
@@ -87,11 +86,6 @@ class _AdventureScreenState extends State<AdventureScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) unawaited(_showExam());
     });
-  }
-
-  void _handleGateOpened() {
-    if (!mounted || _returningToMap) return;
-    setState(() => _gateOpened = true);
   }
 
   Future<void> _showExam() async {
@@ -123,7 +117,7 @@ class _AdventureScreenState extends State<AdventureScreen> {
       ),
     );
     if (!mounted) return;
-    if (result?.passed != true) _game.resumeEngine();
+    _game.resumeEngine();
     _showingQuiz = false;
 
     if (result == null) {
@@ -131,30 +125,26 @@ class _AdventureScreenState extends State<AdventureScreen> {
       return;
     }
 
-    _game.completeQuiz(result.skor);
+    _game.completeQuiz(result.passed ? result.skor : 0);
     if (!result.passed) {
       await _loadNyawa();
-      return;
-    }
-
-    _returningToMap = true;
-    await _unlockProgression(result.skor, result.nyawa);
-    if (!mounted) return;
-    final continueToNextIsland = await _showBadgeCelebration();
-    if (!mounted) return;
-    if (continueToNextIsland && widget.pulauId < StorageService.totalIslands) {
-      await Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => AdventureScreen(
-            pulauId: widget.pulauId + 1,
-            namaPulau: BankSoal.islandName(widget.pulauId + 1),
-          ),
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          key: const ValueKey('adventure-quiz-failed-notification'),
+          backgroundColor: Colors.red[700],
+          content:
+              const Text('Belum lulus. Zaid kembali ke awal. Yuk coba lagi!'),
         ),
       );
       return;
     }
-    if (mounted) Navigator.pop(context);
+
+    _game.stopMoving();
+    setState(() => _returningToMap = true);
+    await _unlockProgression(result.skor, result.nyawa);
+    if (!mounted) return;
+    await _showCompletionAndContinue();
   }
 
   Future<void> _showNyawaHabisDialog() async {
@@ -183,71 +173,57 @@ class _AdventureScreenState extends State<AdventureScreen> {
     );
   }
 
-  Future<bool> _showBadgeCelebration() async {
-    final badgeName = BankSoal.badgeName(widget.pulauId).replaceAll('\n', ' ');
+  Future<void> _showCompletionAndContinue() async {
     final hasNextIsland = widget.pulauId < StorageService.totalIslands;
-    final nextIsland =
-        hasNextIsland ? '\nPulau ${widget.pulauId + 1} juga terbuka!' : '';
-    final gateNotification = _gateOpened
-        ? hasNextIsland
-            ? 'Gerbang terbuka! Lanjut ke pulau berikutnya.'
-            : 'Gerbang terbuka! Seluruh pulau telah diselesaikan.'
-        : null;
-    final continueToNextIsland = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Lencana Terbuka!'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+    final badgeName = BankSoal.badgeName(widget.pulauId).replaceAll('\n', ' ');
+    final nextIslandMessage = hasNextIsland
+        ? 'Gerbang terbuka! Masuk ke Pulau ${widget.pulauId + 1}...'
+        : 'Gerbang terbuka! Seluruh pulau telah diselesaikan.';
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      SnackBar(
+        key: const ValueKey('adventure-island-success-notification'),
+        duration: _islandCompletionDelay,
+        backgroundColor: Colors.green[800],
+        content: Row(
           children: [
-            Image.asset('assets/images/icon_trophy.png', height: 88),
-            const SizedBox(height: 12),
-            Text(
-              badgeName,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Hebat! Kamu lulus ujian Pulau ${widget.pulauId}.$nextIsland',
-              textAlign: TextAlign.center,
-            ),
-            if (gateNotification != null) ...[
-              const SizedBox(height: 12),
-              Container(
-                key: const ValueKey('adventure-gate-open-notification'),
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.green[50],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  gateNotification,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.green[800],
-                    fontWeight: FontWeight.w800,
+            const Icon(Icons.emoji_events_rounded,
+                color: Colors.amber, size: 32),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Berhasil! Pulau ${widget.pulauId} selesai!',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
-                ),
+                  Text('Lencana $badgeName terbuka. $nextIslandMessage'),
+                ],
               ),
-            ],
+            ),
           ],
         ),
-        actions: [
-          if (_gateOpened && hasNextIsland)
-            ElevatedButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: Text('Lanjut ke Pulau ${widget.pulauId + 1}'),
-            ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Kembali ke Peta'),
-          ),
-        ],
       ),
     );
-    return continueToNextIsland ?? false;
+
+    await Future<void>.delayed(_islandCompletionDelay);
+    if (!mounted) return;
+    messenger.hideCurrentSnackBar();
+    if (hasNextIsland) {
+      await Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AdventureScreen(
+            pulauId: widget.pulauId + 1,
+            namaPulau: BankSoal.islandName(widget.pulauId + 1),
+          ),
+        ),
+      );
+      return;
+    }
+    if (mounted) Navigator.pop(context);
   }
 
   @override
@@ -263,7 +239,7 @@ class _AdventureScreenState extends State<AdventureScreen> {
             left: padding.left + 12,
             child: _HudButton(
               icon: Icons.arrow_back_rounded,
-              onPressed: () => Navigator.pop(context),
+              onPressed: _returningToMap ? () {} : () => Navigator.pop(context),
             ),
           ),
           Positioned(
@@ -296,20 +272,23 @@ class _AdventureScreenState extends State<AdventureScreen> {
           Positioned(
             bottom: padding.bottom + 18,
             left: padding.left + 18,
-            child: Row(
-              children: [
-                _HoldControl(
-                  icon: Icons.arrow_back_ios_new_rounded,
-                  onStart: () => _game.setMoveLeft(true),
-                  onStop: () => _game.setMoveLeft(false),
-                ),
-                const SizedBox(width: 14),
-                _HoldControl(
-                  icon: Icons.arrow_forward_ios_rounded,
-                  onStart: () => _game.setMoveRight(true),
-                  onStop: () => _game.setMoveRight(false),
-                ),
-              ],
+            child: IgnorePointer(
+              ignoring: _returningToMap,
+              child: Row(
+                children: [
+                  _HoldControl(
+                    icon: Icons.arrow_back_ios_new_rounded,
+                    onStart: () => _game.setMoveLeft(true),
+                    onStop: () => _game.setMoveLeft(false),
+                  ),
+                  const SizedBox(width: 14),
+                  _HoldControl(
+                    icon: Icons.arrow_forward_ios_rounded,
+                    onStart: () => _game.setMoveRight(true),
+                    onStop: () => _game.setMoveRight(false),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

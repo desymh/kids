@@ -214,10 +214,26 @@ void main() {
     );
     final closedSprite = game.gate.sprite;
 
+    game.player.position.x = game.guardian.position.x -
+        QalbuKidsAdventureGame.guardianCollisionDistance;
+    game.player.faceDirection(-1);
+    game.player.setWalkBob(0.01);
+    game.setMoveRight(true);
     game.fsm.beginQuiz();
+    game.update(0);
+    expect(game.camera.viewfinder.position.x, greaterThan(0));
+
     game.completeQuiz(59);
     expect(game.fsm.gateState, GateState.locked);
+    expect(game.fsm.playerState, PlayerState.idle);
     expect(game.gate.sprite, same(closedSprite));
+    expect(game.player.position.x, QalbuKidsAdventureGame.playerStartX);
+    expect(game.player.position.y, game.player.groundY);
+    expect(game.player.scale.x, 1);
+    expect(game.player.scale.y, 1);
+    expect(game.player.playing, isFalse);
+    expect(game.camera.viewfinder.position.x, 0);
+    expect(game.skyParallax.parallax!.baseVelocity.x, 0);
     expect(notifications, 0);
 
     game.fsm.beginQuiz();
@@ -460,19 +476,18 @@ void main() {
         game.gate.position.y,
         closeTo(groundY + QalbuKidsAdventureGame.gateGroundOffset, 0.001),
       );
+      final gateLeft = game.gate.position.x - game.gate.size.x / 2;
+      final guardianRight = game.guardian.position.x + game.guardian.size.x / 2;
       expect(
-        game.guardian.position.x,
-        closeTo(
-          game.gate.position.x - QalbuKidsAdventureGame.guardianGateOffset,
-          0.001,
-        ),
+        guardianRight + QalbuKidsAdventureGame.guardianGateGap,
+        closeTo(gateLeft, 0.001),
       );
       expect(game.player.priority, 30);
       expect(game.gate.position.x, QalbuKidsAdventureGame.gateX);
       expect(game.cameraBoundsWidth, QalbuKidsAdventureGame.worldWidth);
       expect(game.gate.priority, 10);
       expect(game.guardian.priority, 20);
-      expect(game.gate.scale.x, -1);
+      expect(game.gate.scale.x, 1);
       expect(game.guardian.scale.x, -1);
       expect(game.player.anchor, Anchor.bottomCenter);
       expect(game.guardian.anchor, Anchor.bottomCenter);
@@ -491,6 +506,19 @@ void main() {
       game.update(0);
       expect(game.player.position.y, closeTo(actorY, 0.001));
       expect(game.player.scale.y, 1);
+    });
+
+    testWidgets('gate stands ahead of Zaid and faces the approach direction',
+        (tester) async {
+      final game = await _pumpAdventureGame(tester);
+      final gateLeft = game.gate.position.x - game.gate.size.x / 2;
+      final guardianRight = game.guardian.position.x + game.guardian.size.x / 2;
+
+      expect(game.player.position.x, lessThan(game.guardian.position.x));
+      expect(game.guardian.position.x, lessThan(game.gate.position.x));
+      expect(guardianRight, lessThan(gateLeft));
+      expect(game.gate.scale.x, 1);
+      expect(game.gate.anchor, Anchor.bottomCenter);
     });
 
     testWidgets('camera uses damped manual top-left tracking', (tester) async {
