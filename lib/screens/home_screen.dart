@@ -151,10 +151,10 @@ class _HomeContent extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         Image.asset(
-          'assets/images/bg_langit_masjid.png',
+          'assets/images/bg_menu_utama.png',
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => Image.asset(
-            'assets/images/bg_langit_masjid.jpeg',
+            'assets/images/bg_menu_utama.jpeg',
             fit: BoxFit.cover,
           ),
         ),

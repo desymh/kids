@@ -125,7 +125,7 @@ void main() {
     expect(findAvatarAsset('zaid'), findsOneWidget);
   });
 
-  testWidgets('Home shows mosque background and four floating menu icons',
+  testWidgets('Home shows main menu background and four floating menu icons',
       (tester) async {
     await useLandscapeSize(tester);
     SharedPreferences.setMockInitialValues({
@@ -140,8 +140,7 @@ void main() {
     await pumpFrames(tester);
 
     expect(findAvatarAsset('zaid'), findsOneWidget);
-    expect(
-        findImageAsset('assets/images/bg_langit_masjid.png'), findsOneWidget);
+    expect(findImageAsset('assets/images/bg_menu_utama.png'), findsOneWidget);
     expect(
         findImageAsset('assets/images/icon_menu_belajar.png'), findsOneWidget);
     expect(
