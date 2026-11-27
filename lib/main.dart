@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
 import 'core/storage_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/profile_setup_screen.dart';
@@ -6,6 +8,10 @@ import 'screens/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
   final storage = StorageService();
   await storage.init();
   runApp(const QalbuKidsApp());

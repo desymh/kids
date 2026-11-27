@@ -55,6 +55,11 @@ Future<void> openScreenFromLauncher(
   await tester.pump(const Duration(milliseconds: 400));
 }
 
+Future<void> pumpHomeFrames(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+}
+
 Future<void> openAdventureExam(WidgetTester tester) async {
   late QalbuKidsAdventureGame game;
   await tester.tap(find.text('Pulau 1: Pondasi Islam'));
@@ -73,12 +78,9 @@ Future<void> openAdventureExam(WidgetTester tester) async {
   expect(game.isLoaded, isTrue);
 
   game.pauseEngine();
-  game.setMoveRight(true);
-  for (var i = 0; i < 80 && game.fsm.gateState != GateState.quizActive; i++) {
-    game.update(0.1);
-    await tester.pump(const Duration(milliseconds: 100));
-  }
-  game.stopMoving();
+  game.player.position.x = game.guardian.position.x -
+      QalbuKidsAdventureGame.guardianCollisionDistance;
+  game.update(0);
   expect(game.fsm.gateState, GateState.quizActive);
 
   tester.binding.scheduleFrame();
@@ -114,36 +116,45 @@ void main() {
   testWidgets('Pulau 1 is playable from home through Badge 1 unlock',
       (tester) async {
     await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
-    await tester.pumpAndSettle();
+    await pumpHomeFrames(tester);
 
     expect(find.text('Hai, Naya!'), findsOneWidget);
     expect(find.text('Ayo belajar & bertualang!'), findsOneWidget);
     expect(find.text('🏅 0 / 6 Lencana'), findsNothing);
     expect(find.textContaining('bintang'), findsNothing);
-    expect(find.text('Lanjutkan: Pulau 1 - Tahap 1 (Pondasi Islam)'),
-        findsOneWidget);
+    expect(find.byKey(const ValueKey('menu-bermain')), findsOneWidget);
 
-    await tester.ensureVisible(find.text('GAME UJIAN'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('GAME UJIAN'));
+    await tester.ensureVisible(find.byKey(const ValueKey('menu-bermain')));
+    await pumpHomeFrames(tester);
+    await tester.tap(find.byKey(const ValueKey('menu-bermain')));
     await tester.pumpAndSettle();
 
     expect(find.text('Peta Petualangan'), findsOneWidget);
     expect(find.byIcon(Icons.lock), findsNWidgets(5));
     await openAdventureExam(tester);
 
-    for (var question = 0; question < 6; question++) {
+    for (var question = 0; question < 9; question++) {
       await tapCurrentAnswer(tester, correct: true);
       await tester.pumpAndSettle();
       expect(find.text('✨ MasyaAllah, Benar! +1 ❤️ Nyawa'), findsOneWidget);
-      await tester.tap(find.text(question == 5 ? 'Lihat Hasil' : 'Lanjut'));
-      if (question == 5) {
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 400));
-      } else {
-        await tester.pumpAndSettle();
-      }
+      await tester.tap(find.text(question == 8 ? 'Lihat Hasil' : 'Lanjut'));
+      await tester.pumpAndSettle();
     }
+
+    expect(find.text('Bintang Pulau: 3/3'), findsOneWidget);
+    expect(
+      find.text(
+          '🏆 LUAR BIASA! 9/9 Benar Sempurna! Piala Penghargaan Pulau 1 Terbuka!'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Buka Gerbang'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byKey(const ValueKey('adventure-perfect-trophy-dialog')),
+        findsOneWidget);
+    await tester.tap(find.text('Lanjut'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(
       find.byKey(const ValueKey('adventure-island-success-notification')),
@@ -179,7 +190,7 @@ void main() {
     expect(find.byIcon(Icons.lock), findsNWidgets(4));
 
     await tester.tap(find.byIcon(Icons.arrow_back));
-    await tester.pumpAndSettle();
+    await pumpHomeFrames(tester);
 
     expect(find.text('Hai, Naya!'), findsOneWidget);
     expect(find.text('Ayo belajar & bertualang!'), findsOneWidget);
@@ -188,19 +199,19 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('home-lives')),
-        matching: find.text('11'),
+        matching: find.text('14'),
       ),
       findsOneWidget,
     );
-    expect(await storage.getNyawa(), 11);
+    expect(await storage.getNyawa(), 14);
     expect((await storage.getLencana()).first, isTrue);
 
     final preferences = await SharedPreferences.getInstance();
     expect(preferences.getBool('lencana_1'), isTrue);
     expect(preferences.getBool('pulau_2_unlocked'), isTrue);
 
-    await tester.tap(find.text('Lencana'));
-    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('menu-koleksiku')));
+    await pumpHomeFrames(tester);
     expect(find.text('1/6'), findsOneWidget);
     expect(find.text('TERBUKA'), findsOneWidget);
 
@@ -356,7 +367,7 @@ void main() {
       (tester) async {
     await storage.setNyawa(1);
     await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
-    await tester.pumpAndSettle();
+    await pumpHomeFrames(tester);
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('home-lives')),
@@ -365,13 +376,15 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.ensureVisible(find.text('SIMULASI PRAKTIK'));
+    await tester.tap(find.byKey(const ValueKey('menu-belajar')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('SIMULASI PRAKTIK'));
     await tester.pumpAndSettle();
     await storage.tambahNyawa(2);
     await tester.tap(find.byIcon(Icons.arrow_back_rounded));
     await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await pumpHomeFrames(tester);
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('home-lives')),
@@ -380,13 +393,11 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.ensureVisible(find.text('MENU BELAJAR'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('MENU BELAJAR'));
+    await tester.tap(find.byKey(const ValueKey('menu-belajar')));
     await tester.pumpAndSettle();
     await storage.tambahNyawa(2);
     await tester.tap(find.byIcon(Icons.arrow_back));
-    await tester.pumpAndSettle();
+    await pumpHomeFrames(tester);
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('home-lives')),

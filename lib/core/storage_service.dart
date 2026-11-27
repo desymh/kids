@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'fsm/adventure_fsm.dart';
 import 'fsm_controller.dart';
 
 class StorageService {
@@ -6,6 +7,7 @@ class StorageService {
   static const String keyAvatar = 'user_avatar';
   static const String keyRegistered = 'is_registered';
   static const String keyTotalPoin = 'total_poin';
+  static const String keyKoin = 'koin';
   static const String keyNyawa = 'nyawa';
   static const String keyTotalBintang = 'total_bintang';
   static const String keyLencana = 'lencana';
@@ -15,6 +17,7 @@ class StorageService {
   static const int stagesPerIsland = 4;
   static const int totalBadges = 6;
   static const int defaultNyawa = 5;
+  static const int defaultKoin = 50;
 
   Future<void> init() async {
     final sp = await SharedPreferences.getInstance();
@@ -32,6 +35,11 @@ class StorageService {
       await sp.setInt(
           keyTotalPoin, sp.getInt('totalPoin') ?? sp.getInt('poin') ?? 0);
     }
+    final storedKoin = sp.get(keyKoin);
+    await sp.setInt(
+      keyKoin,
+      storedKoin is int ? (storedKoin < 0 ? 0 : storedKoin) : defaultKoin,
+    );
     final storedNyawa = sp.get(keyNyawa);
     await setNyawa(storedNyawa is int ? storedNyawa : defaultNyawa);
     if (!sp.containsKey(keyTotalBintang)) {
@@ -124,6 +132,50 @@ class StorageService {
     final updated = current + value;
     await setTotalPoin(updated);
     return updated < 0 ? 0 : updated;
+  }
+
+  Future<int> getKoin() async {
+    final sp = await SharedPreferences.getInstance();
+    final stored = sp.get(keyKoin);
+    if (stored is! int) {
+      await sp.setInt(keyKoin, defaultKoin);
+      return defaultKoin;
+    }
+    final koin = stored < 0 ? 0 : stored;
+    if (koin != stored) {
+      await sp.setInt(keyKoin, koin);
+    }
+    return koin;
+  }
+
+  Future<void> setKoin(int value) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setInt(keyKoin, value < 0 ? 0 : value);
+  }
+
+  Future<int> tambahKoin(int jumlah) async {
+    final current = await getKoin();
+    final updated = current + (jumlah < 0 ? 0 : jumlah);
+    await setKoin(updated);
+    return updated;
+  }
+
+  Future<bool> beliNyawaDenganKoin({
+    required int hargaKoin,
+    required int jumlahNyawa,
+  }) async {
+    if (hargaKoin <= 0 || jumlahNyawa <= 0) return false;
+
+    final sp = await SharedPreferences.getInstance();
+    final storedKoin = sp.getInt(keyKoin) ?? defaultKoin;
+    final koin = storedKoin < 0 ? 0 : storedKoin;
+    if (koin < hargaKoin) return false;
+
+    final storedNyawa = sp.getInt(keyNyawa) ?? defaultNyawa;
+    final nyawa = storedNyawa < 0 ? 0 : storedNyawa;
+    await sp.setInt(keyKoin, koin - hargaKoin);
+    await sp.setInt(keyNyawa, nyawa + jumlahNyawa);
+    return true;
   }
 
   Future<int> getNyawa() async {
@@ -285,6 +337,39 @@ class StorageService {
 
   Future<int> getIslandStars(int pulauId) async {
     return getStageStars(pulauId, stagesPerIsland);
+  }
+
+  Future<int> saveBestIslandStars(int pulauId, int value) async {
+    if (pulauId < 1 || pulauId > totalIslands) return 0;
+    final current = await getIslandStars(pulauId);
+    final stars = value < 0 ? 0 : (value > 3 ? 3 : value);
+    final best = stars > current ? stars : current;
+    await setStageStars(pulauId, stagesPerIsland, best);
+    await recalculateTotalStars();
+    return best;
+  }
+
+  Future<void> saveAdventureResult({
+    required int pulauId,
+    required int skor,
+    required int jumlahBenar,
+    required int bintang,
+    required int nyawa,
+  }) async {
+    if (pulauId < 1 || pulauId > totalIslands) return;
+    await saveBestIslandStars(pulauId, bintang);
+    if (jumlahBenar < AdventureFSM.finalExamPassScore || nyawa <= 0) return;
+
+    final fsm = ProgressionFSM(initialStates: await getFsmStates());
+    fsm.complete(ProgressionFSM.islandKey(pulauId), skor, nyawa);
+    if (jumlahBenar == 9) {
+      fsm.unlock(ProgressionFSM.badgeKey(pulauId));
+    }
+    if (pulauId < totalIslands) {
+      fsm.unlock(ProgressionFSM.islandKey(pulauId + 1));
+      fsm.unlock(ProgressionFSM.stageKey(pulauId + 1, 1));
+    }
+    await saveFsmStates(fsm.states);
   }
 
   Future<int> recalculateTotalStars() async {

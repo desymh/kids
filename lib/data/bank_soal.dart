@@ -901,6 +901,173 @@ class BankSoal {
       'opsi': ['Berlari', 'Shalat', 'Berdiri', 'Duduk'],
       'jawabanBenar': 0
     },
+    // Pulau 6 - Ujian Akhir
+    {
+      'id': 'p6_t1_q1',
+      'pulauId': 6,
+      'tahap': 1,
+      'pertanyaan': 'Berapa jumlah nabi dan rasul yang wajib diketahui?',
+      'opsi': ['10', '20', '25', '30'],
+      'jawabanBenar': 2
+    },
+    {
+      'id': 'p6_t1_q2',
+      'pulauId': 6,
+      'tahap': 1,
+      'pertanyaan': 'Kitab Taurat diturunkan kepada nabi?',
+      'opsi': ['Isa', 'Musa', 'Daud', 'Ibrahim'],
+      'jawabanBenar': 1
+    },
+    {
+      'id': 'p6_t1_q3',
+      'pulauId': 6,
+      'tahap': 1,
+      'pertanyaan': 'Malaikat Mikail dikenal membawa?',
+      'opsi': ['Wahyu', 'Rezeki', 'Sangkakala', 'Kabar gembira'],
+      'jawabanBenar': 1
+    },
+    {
+      'id': 'p6_t1_q4',
+      'pulauId': 6,
+      'tahap': 1,
+      'pertanyaan': 'Apa arti thaharah?',
+      'opsi': ['Bersuci', 'Berpuasa', 'Berdoa', 'Bermain'],
+      'jawabanBenar': 0
+    },
+    {
+      'id': 'p6_t1_q5',
+      'pulauId': 6,
+      'tahap': 1,
+      'pertanyaan': 'Rukun wudhu yang pertama adalah?',
+      'opsi': ['Niat', 'Membasuh wajah', 'Membasuh kaki', 'Mengusap kepala'],
+      'jawabanBenar': 0
+    },
+    {
+      'id': 'p6_t2_q1',
+      'pulauId': 6,
+      'tahap': 2,
+      'pertanyaan': 'Bacaan yang wajib dibaca pada setiap rakaat shalat?',
+      'opsi': ['Al-Fatihah', 'Al-Kautsar', 'Al-Ikhlas', 'Al-Falaq'],
+      'jawabanBenar': 0
+    },
+    {
+      'id': 'p6_t2_q2',
+      'pulauId': 6,
+      'tahap': 2,
+      'pertanyaan': 'Jumlah rakaat shalat Maghrib adalah?',
+      'opsi': ['2', '3', '4', '5'],
+      'jawabanBenar': 1
+    },
+    {
+      'id': 'p6_t2_q3',
+      'pulauId': 6,
+      'tahap': 2,
+      'pertanyaan': 'Perbuatan yang membatalkan shalat adalah?',
+      'opsi': ['Khusyuk', 'Berbicara', 'Membaca Al-Fatihah', "Tuma'ninah"],
+      'jawabanBenar': 1
+    },
+    {
+      'id': 'p6_t2_q4',
+      'pulauId': 6,
+      'tahap': 2,
+      'pertanyaan': 'Puasa dimulai sejak?',
+      'opsi': ['Terbit fajar', 'Tengah malam', 'Pagi', 'Siang'],
+      'jawabanBenar': 0
+    },
+    {
+      'id': 'p6_t2_q5',
+      'pulauId': 6,
+      'tahap': 2,
+      'pertanyaan': 'Puasa berakhir pada?',
+      'opsi': ['Terbenam matahari', 'Tengah malam', 'Pagi', 'Siang'],
+      'jawabanBenar': 0
+    },
+    {
+      'id': 'p6_t3_q1',
+      'pulauId': 6,
+      'tahap': 3,
+      'pertanyaan': 'Puasa Ramadhan wajib bagi?',
+      'opsi': ['Muslim yang mampu', 'Anak bayi', 'Orang sakit', 'Orang gila'],
+      'jawabanBenar': 0
+    },
+    {
+      'id': 'p6_t3_q2',
+      'pulauId': 6,
+      'tahap': 3,
+      'pertanyaan': 'Adab makan memakai tangan adalah?',
+      'opsi': ['Tangan kiri', 'Tangan kanan', 'Kedua tangan', 'Tidak perlu'],
+      'jawabanBenar': 1
+    },
+    {
+      'id': 'p6_t3_q3',
+      'pulauId': 6,
+      'tahap': 3,
+      'pertanyaan': 'Saat masuk masjid kita mendahulukan?',
+      'opsi': ['Kaki kiri', 'Berdiri', 'Kaki kanan', 'Berlari'],
+      'jawabanBenar': 2
+    },
+    {
+      'id': 'p6_t3_q4',
+      'pulauId': 6,
+      'tahap': 3,
+      'pertanyaan': 'Doa untuk orang tua diawali?',
+      'opsi': ['Rabbighfir li', 'Bismillah', 'Alhamdulillah', 'Subhanallah'],
+      'jawabanBenar': 0
+    },
+    {
+      'id': 'p6_t3_q5',
+      'pulauId': 6,
+      'tahap': 3,
+      'pertanyaan': 'Doa keluar rumah diawali?',
+      'opsi': ['Bismillah', 'Alhamdulillah', 'Subhanallah', 'Allahu Akbar'],
+      'jawabanBenar': 0
+    },
+    {
+      'id': 'p6_t4_q1',
+      'pulauId': 6,
+      'tahap': 4,
+      'pertanyaan': 'Adab terhadap guru adalah?',
+      'opsi': ['Membantah', 'Menghormati', 'Mengabaikan', 'Melawan'],
+      'jawabanBenar': 1
+    },
+    {
+      'id': 'p6_t4_q2',
+      'pulauId': 6,
+      'tahap': 4,
+      'pertanyaan': 'Sesudah makan kita mengucapkan?',
+      'opsi': ['Alhamdulillah', 'Bismillah', 'Subhanallah', 'Allahu Akbar'],
+      'jawabanBenar': 0
+    },
+    {
+      'id': 'p6_t4_q3',
+      'pulauId': 6,
+      'tahap': 4,
+      'pertanyaan':
+          'Najis yang mengenai benda basah karena anjing termasuk najis?',
+      'opsi': ['Ringan', 'Sedang', 'Berat', 'Tidak najis'],
+      'jawabanBenar': 2
+    },
+    {
+      'id': 'p6_t4_q4',
+      'pulauId': 6,
+      'tahap': 4,
+      'pertanyaan': "Thuma'ninah dalam shalat artinya?",
+      'opsi': ['Tenang sejenak', 'Berlari', 'Berbicara', 'Mendengar'],
+      'jawabanBenar': 0
+    },
+    {
+      'id': 'p6_t4_q5',
+      'pulauId': 6,
+      'tahap': 4,
+      'pertanyaan': 'Makan karena lupa dalam puasa menyebabkan?',
+      'opsi': [
+        'Puasa tetap sah',
+        'Puasa batal',
+        'Harus mengganti',
+        'Tidak boleh'
+      ],
+      'jawabanBenar': 0
+    },
   ];
 
   static List<Map<String, dynamic>> getSoalPulau(int pulauId) {
@@ -913,6 +1080,13 @@ class BankSoal {
     final filtered =
         bank.where((question) => question['pulauId'] == pulauId).toList();
     return FisherYatesShuffler.acakDaftarSoal(filtered).take(6).toList();
+  }
+
+  static List<Map<String, dynamic>> getSoalPetualangan(int pulauId) {
+    if (pulauId < 1 || pulauId > 6) return [];
+    final filtered =
+        bank.where((question) => question['pulauId'] == pulauId).toList();
+    return FisherYatesShuffler.acakDaftarSoal(filtered).take(20).toList();
   }
 
   static List<Map<String, dynamic>> getSoalTahap(int pulauId, int tahap) {

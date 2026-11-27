@@ -28,9 +28,12 @@ class AdventureFSM {
     return true;
   }
 
-  bool finishQuiz({required int skor}) {
+  bool finishQuiz({required int skor, int? jumlahBenar}) {
     if (_gateState != GateState.quizActive) return false;
-    if (skor >= passScore) {
+    final passed = jumlahBenar == null
+        ? skor >= passScore
+        : jumlahBenar >= finalExamPassScore;
+    if (passed) {
       _gateState = GateState.unlocked;
     } else {
       _gateState = GateState.locked;
@@ -46,4 +49,5 @@ class AdventureFSM {
   }
 
   static const int passScore = 60;
+  static const int finalExamPassScore = 6;
 }

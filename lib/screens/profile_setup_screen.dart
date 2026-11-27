@@ -84,6 +84,71 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
+            Widget profileCard({required bool showMascot}) {
+              return ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: _ProfileCard(
+                  nameController: _nameCtrl,
+                  avatar: _avatar,
+                  nameError: _nameError,
+                  saving: _saving,
+                  isEditing: widget.isEditing,
+                  showMascot: showMascot,
+                  onNameChanged: () {
+                    if (_nameError != null) {
+                      setState(() => _nameError = null);
+                    }
+                  },
+                  onAvatarSelected: _selectAvatar,
+                  onSave: _save,
+                ),
+              );
+            }
+
+            if (constraints.maxWidth > constraints.maxHeight) {
+              return Stack(
+                children: [
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(28, 20, 28, 24),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const _WelcomeHeader(),
+                              const SizedBox(height: 16),
+                              Image.asset(
+                                'assets/images/mascot_berdua.png',
+                                height: 190,
+                                fit: BoxFit.contain,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 28),
+                        Expanded(
+                          child: Center(
+                            child: profileCard(showMascot: false),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (widget.isEditing)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: IconButton(
+                        tooltip: 'Kembali',
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.arrow_back, color: _darkEmerald),
+                      ),
+                    ),
+                ],
+              );
+            }
+
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
               child: ConstrainedBox(
@@ -106,23 +171,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       ),
                     const _WelcomeHeader(),
                     const SizedBox(height: 54),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 420),
-                      child: _ProfileCard(
-                        nameController: _nameCtrl,
-                        avatar: _avatar,
-                        nameError: _nameError,
-                        saving: _saving,
-                        isEditing: widget.isEditing,
-                        onNameChanged: () {
-                          if (_nameError != null) {
-                            setState(() => _nameError = null);
-                          }
-                        },
-                        onAvatarSelected: _selectAvatar,
-                        onSave: _save,
-                      ),
-                    ),
+                    profileCard(showMascot: true),
                   ],
                 ),
               ),
@@ -200,6 +249,7 @@ class _ProfileCard extends StatelessWidget {
   final String? nameError;
   final bool saving;
   final bool isEditing;
+  final bool showMascot;
   final VoidCallback onNameChanged;
   final ValueChanged<String> onAvatarSelected;
   final VoidCallback onSave;
@@ -210,6 +260,7 @@ class _ProfileCard extends StatelessWidget {
     required this.nameError,
     required this.saving,
     required this.isEditing,
+    required this.showMascot,
     required this.onNameChanged,
     required this.onAvatarSelected,
     required this.onSave,
@@ -324,16 +375,206 @@ class _ProfileCard extends StatelessWidget {
             ],
           ),
         ),
-        Positioned(
-          top: -58,
-          left: 0,
-          right: 0,
-          child: Image.asset(
-            'assets/images/mascot_berdua.png',
-            height: 145,
-            fit: BoxFit.contain,
+        if (showMascot)
+          Positioned(
+            top: -58,
+            left: 0,
+            right: 0,
+            child: Image.asset(
+              'assets/images/mascot_berdua.png',
+              height: 145,
+              fit: BoxFit.contain,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class ProfileSummaryTab extends StatelessWidget {
+  final String nama;
+  final String avatarAsset;
+  final int koin;
+  final int nyawa;
+  final int jumlahLencanaTerbuka;
+  final VoidCallback onEditProfile;
+  final VoidCallback onResetProgress;
+
+  const ProfileSummaryTab({
+    super.key,
+    required this.nama,
+    required this.avatarAsset,
+    required this.koin,
+    required this.nyawa,
+    required this.jumlahLencanaTerbuka,
+    required this.onEditProfile,
+    required this.onResetProgress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+      children: [
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 620),
+            child: Column(
+              children: [
+                const Text(
+                  'Profil Santri',
+                  style: TextStyle(
+                    fontSize: 21,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF244B43),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                    border:
+                        Border.all(color: const Color(0xFF2E8B57), width: 4),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF2E8B57).withValues(alpha: 0.22),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: CircleAvatar(
+                    radius: 52,
+                    backgroundColor: const Color(0xFFE6F5EE),
+                    child: ClipOval(
+                      child: Image.asset(
+                        avatarAsset,
+                        width: 104,
+                        height: 104,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.person, size: 60),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  nama,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF244B43),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF2D5F52).withValues(alpha: 0.1),
+                        blurRadius: 12,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _SummaryStat(symbol: '🪙', value: '$koin', label: 'Koin'),
+                      _SummaryStat(
+                          symbol: '❤️', value: '$nyawa', label: 'Nyawa'),
+                      _SummaryStat(
+                        symbol: '🏆',
+                        value:
+                            '$jumlahLencanaTerbuka / ${StorageService.totalBadges}',
+                        label: 'Lencana',
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: onEditProfile,
+                    icon: const Icon(Icons.edit),
+                    label: const Text(
+                      'Edit Nama & Karakter',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2E8B57),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: onResetProgress,
+                    icon: const Icon(Icons.restart_alt),
+                    label: const Text(
+                      'Reset Progres Tes',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFB45353),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      side: const BorderSide(color: Color(0xFFE7BDBD)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _SummaryStat extends StatelessWidget {
+  final String symbol;
+  final String value;
+  final String label;
+
+  const _SummaryStat({
+    required this.symbol,
+    required this.value,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(symbol, style: const TextStyle(fontSize: 26)),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w900,
+            color: Color(0xFF244B43),
+          ),
+        ),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
       ],
     );
   }

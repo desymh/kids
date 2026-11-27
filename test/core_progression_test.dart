@@ -79,12 +79,38 @@ void main() {
           }
         }
 
+        final explicitQuestions = BankSoal.bank
+            .where((question) => question['pulauId'] == pulau)
+            .toList();
+        expect(explicitQuestions.length, greaterThanOrEqualTo(20));
+        for (final question in explicitQuestions) {
+          final options = (question['opsi'] as List).cast<String>();
+          expect(options, hasLength(4));
+          expect(options.toSet(), hasLength(4));
+          expect(question['jawabanBenar'], inInclusiveRange(0, 3));
+        }
+
         final islandQuestions = BankSoal.getSoalPulau(pulau);
         expect(islandQuestions, hasLength(pulau == 6 ? 8 : 6));
         expect(
           islandQuestions.map((question) => question['id'].toString()).toSet(),
           hasLength(islandQuestions.length),
         );
+
+        final adventureQuestions = BankSoal.getSoalPetualangan(pulau);
+        expect(adventureQuestions, hasLength(20));
+        expect(
+          adventureQuestions
+              .map((question) => question['id'].toString())
+              .toSet(),
+          hasLength(20),
+        );
+        for (final question in adventureQuestions) {
+          expect(question['pulauId'], pulau);
+          final options = (question['opsi'] as List).cast<String>();
+          expect(options.toSet(), hasLength(4));
+          expect(question['jawabanBenar'], inInclusiveRange(0, 3));
+        }
       }
     });
 
@@ -187,6 +213,7 @@ void main() {
       expect(await storage.getNama(), 'Naya');
       expect(await storage.getAvatar(), 'aisyah');
       expect(await storage.getTotalPoin(), 40);
+      expect(await storage.getKoin(), StorageService.defaultKoin);
       expect(await storage.getNyawa(), StorageService.defaultNyawa);
       expect(await storage.getTotalBintang(), 7);
       expect(await storage.getLevelState(ProgressionFSM.stageKey(1, 1)),
@@ -201,8 +228,8 @@ void main() {
       expect(await storage.isRegistered(), isTrue);
       expect(preferences.getBool(StorageService.keyRegistered), isTrue);
       expect(preferences.getInt(StorageService.keyTotalPoin), 40);
-      expect(
-          preferences.getInt(StorageService.keyNyawa), StorageService.defaultNyawa);
+      expect(preferences.getInt(StorageService.keyNyawa),
+          StorageService.defaultNyawa);
       expect(preferences.getInt(StorageService.keyTotalBintang), 7);
     });
 
@@ -289,6 +316,21 @@ void main() {
       expect(preferences.getString(ProgressionFSM.badgeKey(1)), 'unlocked');
     });
 
+    test(
+        'adventure island stars preserve the best result and recalculate totals',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final storage = StorageService();
+      await storage.init();
+
+      expect(await storage.saveBestIslandStars(1, 2), 2);
+      expect(await storage.getIslandStars(1), 2);
+      expect(await storage.saveBestIslandStars(1, 1), 2);
+      expect(await storage.saveBestIslandStars(1, 9), 3);
+      expect(await storage.getIslandStars(1), 3);
+      expect(await storage.getTotalBintang(), 3);
+    });
+
     test('synchronizes legacy unlock keys when FSM states are saved', () async {
       SharedPreferences.setMockInitialValues({});
       final storage = StorageService();
@@ -327,6 +369,50 @@ void main() {
 
       final preferences = await SharedPreferences.getInstance();
       expect(preferences.getInt(StorageService.keyNyawa), 8);
+    });
+
+    test('defaults coins to fifty and adds non-negative amounts', () async {
+      SharedPreferences.setMockInitialValues({});
+      final storage = StorageService();
+      await storage.init();
+
+      expect(await storage.getKoin(), StorageService.defaultKoin);
+      expect(await storage.tambahKoin(25), 75);
+      expect(await storage.tambahKoin(-10), 75);
+      await storage.setKoin(-5);
+      expect(await storage.getKoin(), 0);
+
+      final preferences = await SharedPreferences.getInstance();
+      expect(preferences.getInt(StorageService.keyKoin), 0);
+    });
+
+    test('buys lives with coins only when the balance is sufficient', () async {
+      SharedPreferences.setMockInitialValues({});
+      final storage = StorageService();
+      await storage.init();
+      await storage.setKoin(100);
+      await storage.setNyawa(2);
+
+      expect(
+        await storage.beliNyawaDenganKoin(hargaKoin: 30, jumlahNyawa: 3),
+        isTrue,
+      );
+      expect(await storage.getKoin(), 70);
+      expect(await storage.getNyawa(), 5);
+
+      expect(
+        await storage.beliNyawaDenganKoin(hargaKoin: 80, jumlahNyawa: 5),
+        isFalse,
+      );
+      expect(await storage.getKoin(), 70);
+      expect(await storage.getNyawa(), 5);
+
+      expect(
+        await storage.beliNyawaDenganKoin(hargaKoin: 0, jumlahNyawa: 1),
+        isFalse,
+      );
+      expect(await storage.getKoin(), 70);
+      expect(await storage.getNyawa(), 5);
     });
 
     test('reset restores shared lives to the default', () async {

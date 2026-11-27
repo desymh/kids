@@ -80,9 +80,6 @@ class _SplashScreenState extends State<SplashScreen>
     _navigationTimer?.cancel();
     _entryController.dispose();
     _floatController.dispose();
-    unawaited(SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-    ]));
     super.dispose();
   }
 

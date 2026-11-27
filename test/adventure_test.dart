@@ -1,8 +1,11 @@
 import 'dart:ui' as ui;
 
+import 'dart:math';
+
 import 'package:flame/camera.dart';
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
+import 'package:flame/parallax.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -42,9 +45,73 @@ String _optionForCurrentQuestion(
       : options.firstWhere((option) => option != correctOption);
 }
 
+List<List<Map<String, dynamic>>> _treasureGroups() {
+  final questions = BankSoal.getSoalPetualangan(1).take(11).toList();
+  return partitionTreasureChestQuestions(questions, random: Random(12));
+}
+
+Future<AdventureQuizResult> _answerGateQuiz(
+  WidgetTester tester, {
+  required int correctCount,
+  required int initialNyawa,
+  void Function()? onResult,
+}) async {
+  SharedPreferences.setMockInitialValues(
+      {StorageService.keyNyawa: initialNyawa});
+  final storage = StorageService();
+  await storage.init();
+  AdventureQuizResult? result;
+
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: ElevatedButton(
+            onPressed: () async {
+              result = await showDialog<AdventureQuizResult>(
+                context: context,
+                barrierDismissible: false,
+                builder: (_) => AdventureQuizDialog(
+                  pulauId: 1,
+                  namaPulau: 'Pondasi Islam',
+                  initialNyawa: initialNyawa,
+                ),
+              );
+            },
+            child: const Text('Buka Ujian'),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.tap(find.text('Buka Ujian'));
+  await tester.pumpAndSettle();
+
+  for (var i = 0; i < 9; i++) {
+    final correct =
+        _optionForCurrentQuestion(tester, correct: i < correctCount);
+    await tester.tap(find.widgetWithText(ElevatedButton, correct));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(i == 8 ? 'Lihat Hasil' : 'Lanjut'));
+    await tester.pumpAndSettle();
+  }
+
+  onResult?.call();
+  final passed = correctCount >= 6 && initialNyawa - (9 - correctCount) > 0;
+  await tester.tap(find.text(passed ? 'Buka Gerbang' : 'Keluar dari Ujian'));
+  await tester.pumpAndSettle();
+  final quizResult = result;
+  if (quizResult == null) {
+    throw TestFailure('The gate quiz did not return a result.');
+  }
+  return quizResult;
+}
+
 Future<void> _pumpQuiz(
   WidgetTester tester, {
   required int nyawa,
+  AdventureQuizMode mode = AdventureQuizMode.finalGate,
+  List<Map<String, dynamic>>? questions,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -53,6 +120,8 @@ Future<void> _pumpQuiz(
           pulauId: 1,
           namaPulau: 'Pondasi Islam',
           initialNyawa: nyawa,
+          mode: mode,
+          questions: questions,
         ),
       ),
     ),
@@ -62,8 +131,14 @@ Future<void> _pumpQuiz(
 
 Future<QalbuKidsAdventureGame> _pumpAdventureGame(
   WidgetTester tester, {
+  int pulauId = 1,
   void Function()? onGateTriggered,
   void Function()? onGateOpened,
+  void Function()? onCoinCollected,
+  void Function(TreasureChestComponent chest)? onTreasureChestTriggered,
+  void Function()? onObstacleHit,
+  bool obstaclesEnabled = false,
+  List<List<Map<String, dynamic>>> treasureQuestionGroups = const [],
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = const Size(960, 540);
@@ -71,8 +146,14 @@ Future<QalbuKidsAdventureGame> _pumpAdventureGame(
   addTearDown(tester.view.resetPhysicalSize);
 
   final game = QalbuKidsAdventureGame(
+    pulauId: pulauId,
     onGateTriggered: onGateTriggered ?? () {},
     onGateOpened: onGateOpened,
+    onCoinCollected: onCoinCollected,
+    onTreasureChestTriggered: onTreasureChestTriggered,
+    onObstacleHit: onObstacleHit,
+    obstaclesEnabled: obstaclesEnabled,
+    treasureQuestionGroups: treasureQuestionGroups,
   );
   await tester.runAsync(() async {
     await tester.pumpWidget(MaterialApp(home: GameWidget(game: game)));
@@ -80,6 +161,53 @@ Future<QalbuKidsAdventureGame> _pumpAdventureGame(
         .timeout(const Duration(seconds: 5));
     await tester.pump();
   });
+  game.pauseEngine();
+  addTearDown(() async {
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+  return game;
+}
+
+Future<QalbuKidsAdventureGame> _pumpAdventureScreen(
+  WidgetTester tester, {
+  int pulauId = 1,
+  Duration timeLimit = const Duration(seconds: 180),
+  Map<String, Object> preferences = const {},
+  bool obstaclesEnabled = false,
+}) async {
+  SharedPreferences.setMockInitialValues(preferences);
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(SystemChannels.platform, (call) async => null);
+  addTearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null);
+  });
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = const Size(960, 540);
+  addTearDown(tester.view.resetDevicePixelRatio);
+  addTearDown(tester.view.resetPhysicalSize);
+
+  await tester.pumpWidget(
+    MaterialApp(
+      home: AdventureScreen(
+        pulauId: pulauId,
+        namaPulau: BankSoal.islandName(pulauId),
+        timeLimit: timeLimit,
+        obstaclesEnabled: obstaclesEnabled,
+      ),
+    ),
+  );
+  await tester.pump();
+  final gameFinder = find.byWidgetPredicate((widget) => widget is GameWidget);
+  final gameWidget = tester.widget<GameWidget>(gameFinder);
+  final game = gameWidget.game as QalbuKidsAdventureGame;
+  for (var i = 0; i < 100 && !game.isLoaded; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump();
+  }
+  expect(game.isLoaded, isTrue);
   game.pauseEngine();
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox.shrink());
@@ -126,11 +254,628 @@ void main() {
       expect(fsm.playerState, PlayerState.idle);
     });
 
+    test('final gate uses the exact six-of-nine pass threshold', () {
+      final fsm = AdventureFSM()..beginQuiz();
+      expect(fsm.finishQuiz(skor: 100, jumlahBenar: 5), isFalse);
+      expect(fsm.gateState, GateState.locked);
+
+      expect(fsm.beginQuiz(), isTrue);
+      expect(fsm.finishQuiz(skor: 0, jumlahBenar: 6), isTrue);
+      expect(fsm.gateState, GateState.unlocked);
+    });
+
     test('canceling a quiz returns the gate to locked', () {
       final fsm = AdventureFSM()..beginQuiz();
       fsm.cancelQuiz();
       expect(fsm.gateState, GateState.locked);
       expect(fsm.playerState, PlayerState.idle);
+    });
+  });
+
+  group('Adventure platforming', () {
+    testWidgets('Zaid jumps, reaches high coins, and lands precisely',
+        (tester) async {
+      final game = await _pumpAdventureGame(tester);
+      final groundY = game.player.groundY;
+
+      expect(game.velocityY, 0);
+      expect(game.gravity, 1150);
+      expect(game.isOnGround, isTrue);
+
+      game.jump();
+      expect(game.velocityY, -520);
+      expect(game.isOnGround, isFalse);
+      game.update(0.20);
+      expect(game.player.position.y, lessThan(groundY - 50));
+      final risingVelocity = game.velocityY;
+      game.jump();
+      expect(game.velocityY, risingVelocity);
+
+      for (var i = 0; i < 60 && !game.isOnGround; i++) {
+        game.update(1 / 60);
+      }
+      expect(game.isOnGround, isTrue);
+      expect(game.velocityY, 0);
+      expect(game.player.position.y, closeTo(groundY, 0.001));
+
+      final highCoin = game.coins.elementAt(6);
+      game.player.position.x = highCoin.position.x;
+      game.update(0);
+      expect(highCoin.isCollected, isFalse);
+
+      game.jump();
+      for (var i = 0; i < 28; i++) {
+        game.update(1 / 60);
+      }
+      expect(game.player.position.y, lessThan(groundY - 100));
+      expect(highCoin.isCollected, isTrue);
+      for (var i = 0; i < 60 && !game.isOnGround; i++) {
+        game.update(1 / 60);
+      }
+      expect(game.player.position.y, closeTo(groundY, 0.001));
+
+      game.fsm.beginQuiz();
+      game.jump();
+      expect(game.velocityY, 0);
+      expect(game.isOnGround, isTrue);
+    });
+
+    testWidgets('sixteen coins use four platformer patterns before the gate',
+        (tester) async {
+      final game = await _pumpAdventureGame(tester);
+      final coins = game.coins.toList();
+      final heights = coins.map((coin) => coin.heightAboveGround).toList();
+      const heightRatios = [
+        0.14,
+        0.14,
+        0.14,
+        0.22,
+        0.30,
+        0.38,
+        0.30,
+        0.22,
+        0.14,
+        0.14,
+        0.14,
+        0.22,
+        0.30,
+        0.38,
+        0.30,
+        0.22,
+      ];
+
+      expect(QalbuKidsAdventureGame.coinPatternCount, 4);
+      expect(QalbuKidsAdventureGame.coinCount, 16);
+      expect(coins, hasLength(16));
+      expect(
+        heights,
+        [for (final ratio in heightRatios) game.size.y * ratio],
+      );
+      for (var i = 0; i < coins.length; i++) {
+        final coin = coins[i];
+        expect(
+          coin.basePosition.y,
+          closeTo(game.surfaceY - heights[i], 0.001),
+        );
+        expect(coin.anchor, Anchor.center);
+        expect(coin.priority, 12);
+        expect(
+          coin.position.x,
+          lessThan(
+            game.guardian.position.x -
+                QalbuKidsAdventureGame.guardianCollisionDistance,
+          ),
+        );
+        if (i > 0) {
+          expect(coin.position.x, greaterThan(coins[i - 1].position.x));
+        }
+      }
+    });
+
+    testWidgets('touching a coin removes it once and emits a sparkle callback',
+        (tester) async {
+      var pickups = 0;
+      final game = await _pumpAdventureGame(
+        tester,
+        onCoinCollected: () => pickups++,
+      );
+      final coin = game.coins.first;
+
+      game.player.position.x = coin.position.x;
+      game.update(0);
+      expect(coin.isCollected, isTrue);
+      expect(game.collectedCoins, 1);
+      expect(pickups, 1);
+
+      game.update(0);
+      expect(game.collectedCoins, 1);
+      expect(pickups, 1);
+      await tester.pump();
+      expect(
+        game.world.children.whereType<CoinCollectionEffect>(),
+        isNotEmpty,
+      );
+    });
+
+    testWidgets('adventure HUD updates and persists coins in real time',
+        (tester) async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+              SystemChannels.platform, (call) async => null);
+      addTearDown(() {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, null);
+      });
+      SharedPreferences.setMockInitialValues({
+        StorageService.keyKoin: 40,
+        StorageService.keyNyawa: 7,
+      });
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(960, 540);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+
+      late QalbuKidsAdventureGame game;
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: AdventureScreen(pulauId: 1, namaPulau: 'Pondasi Islam'),
+          ),
+        );
+        await tester.pump();
+        final gameFinder = find.byWidgetPredicate(
+          (widget) => widget is GameWidget,
+        );
+        final gameWidget = tester.widget<GameWidget>(gameFinder);
+        game = gameWidget.game as QalbuKidsAdventureGame;
+        await Future<void>.sync(() => game.toBeLoaded())
+            .timeout(const Duration(seconds: 5));
+        await tester.pump();
+      });
+      game.pauseEngine();
+      for (var i = 0; i < 10; i++) {
+        await tester.pump();
+      }
+
+      final coinCapsule = find.byKey(const ValueKey('adventure-coins'));
+      final lifeCapsule = find.byKey(const ValueKey('adventure-lives'));
+      final jumpButton = find.byKey(const ValueKey('adventure-jump'));
+      expect(find.descendant(of: coinCapsule, matching: find.text('🪙 40')),
+          findsOneWidget);
+      expect(find.descendant(of: lifeCapsule, matching: find.text('❤️ 7')),
+          findsOneWidget);
+      expect(find.byIcon(Icons.keyboard_arrow_up_rounded), findsOneWidget);
+      expect(tester.getTopLeft(jumpButton).dx, greaterThan(480));
+      expect(tester.getTopLeft(jumpButton).dy, greaterThan(270));
+      expect(tester.getTopLeft(lifeCapsule).dx,
+          greaterThan(tester.getTopLeft(coinCapsule).dx));
+
+      await tester.tap(jumpButton);
+      expect(game.velocityY, -520);
+      expect(game.isOnGround, isFalse);
+      for (var i = 0; i < 60 && !game.isOnGround; i++) {
+        game.update(1 / 60);
+      }
+      expect(game.isOnGround, isTrue);
+
+      final coin = game.coins.first;
+      game.player.position.x = coin.position.x;
+      game.update(0);
+      for (var i = 0; i < 10; i++) {
+        await tester.pump();
+      }
+      await tester.runAsync(() async {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      });
+      await tester.pump();
+      expect(find.descendant(of: coinCapsule, matching: find.text('🪙 41')),
+          findsOneWidget);
+      expect(game.collectedCoins, 1);
+      final savedCoins = await tester.runAsync(
+        () => StorageService().getKoin(),
+      );
+      expect(savedCoins, 41);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  });
+
+  group('Treasure chests', () {
+    testWidgets('five chests use fixed roomy slots between coin patterns',
+        (tester) async {
+      final groups = List.generate(
+        5,
+        (index) => [
+          {
+            'id': 'layout_$index',
+            'pertanyaan': 'Pertanyaan $index',
+            'opsi': ['A', 'B', 'C', 'D'],
+            'jawabanBenar': 0,
+          },
+        ],
+      );
+      final game = await _pumpAdventureGame(
+        tester,
+        treasureQuestionGroups: groups,
+      );
+      final chests = game.treasureChests.toList();
+
+      expect(
+        chests.map((chest) => chest.position.x).toList(),
+        [450, 850, 1250, 1650, 2050],
+      );
+      expect(
+        chests.map((chest) => chest.isFloating).toList(),
+        [false, true, false, true, false],
+      );
+      for (final coin in game.coins) {
+        for (final chest in chests) {
+          expect(
+            (coin.position.x - chest.position.x).abs(),
+            greaterThan((coin.size.x + chest.size.x) / 2),
+          );
+        }
+      }
+    });
+
+    testWidgets(
+        'eleven questions form varied chests on the road and in the air',
+        (tester) async {
+      final groups = _treasureGroups();
+      final game = await _pumpAdventureGame(
+        tester,
+        treasureQuestionGroups: groups,
+      );
+      final chests = game.treasureChests.toList();
+      final ids = chests
+          .expand((chest) => chest.questions)
+          .map((question) => question['id'])
+          .toList();
+
+      expect(groups.length, inInclusiveRange(4, 6));
+      expect(chests, hasLength(groups.length));
+      expect(ids, hasLength(11));
+      expect(ids.toSet(), hasLength(11));
+      for (final group in groups) {
+        expect(group.length, inInclusiveRange(1, 3));
+      }
+      expect(chests.any((chest) => !chest.isFloating), isTrue);
+      expect(chests.any((chest) => chest.isFloating), isTrue);
+
+      for (var i = 0; i < chests.length; i++) {
+        final chest = chests[i];
+        expect(chest.state, TreasureChestState.closed);
+        expect(chest.anchor, Anchor.bottomCenter);
+        expect(chest.priority, 15);
+        expect(chest.position.x, lessThan(game.guardian.position.x - 180));
+        if (chest.isFloating) {
+          expect(
+            chest.basePosition.y,
+            closeTo(
+              game.surfaceY -
+                  (game.size.y *
+                      QalbuKidsAdventureGame.floatingChestHeightRatio),
+              0.001,
+            ),
+          );
+        } else {
+          expect(chest.basePosition.y, closeTo(game.surfaceY, 0.001));
+        }
+        if (i > 0) {
+          final spacing = chest.position.x - chests[i - 1].position.x;
+          expect(spacing, greaterThan(0));
+          expect(
+            spacing,
+            greaterThanOrEqualTo(
+              QalbuKidsAdventureGame.treasureChestMinSpacing - 0.001,
+            ),
+          );
+        }
+      }
+    });
+
+    testWidgets('a touched chest opens once and blocks movement while active',
+        (tester) async {
+      var triggers = 0;
+      TreasureChestComponent? triggeredChest;
+      final game = await _pumpAdventureGame(
+        tester,
+        treasureQuestionGroups: _treasureGroups(),
+        onTreasureChestTriggered: (chest) {
+          triggers++;
+          triggeredChest = chest;
+        },
+      );
+      final chest =
+          game.treasureChests.firstWhere((chest) => !chest.isFloating);
+      game.player.position.x = chest.position.x;
+      game.update(0);
+
+      expect(triggers, 1);
+      expect(triggeredChest, same(chest));
+      expect(game.activeTreasureChest, same(chest));
+      expect(game.fsm.playerState, PlayerState.idle);
+      final frozenX = game.player.position.x;
+      game.setMoveRight(true);
+      game.update(0.1);
+      game.jump();
+      expect(game.player.position.x, frozenX);
+      expect(game.velocityY, 0);
+      expect(game.isOnGround, isTrue);
+
+      game.completeTreasureChest(chest);
+      expect(chest.state, TreasureChestState.opened);
+      expect(game.activeTreasureChest, isNull);
+      game.update(0);
+      expect(triggers, 1);
+    });
+
+    testWidgets('a floating chest cannot be touched from the ground',
+        (tester) async {
+      var triggers = 0;
+      final game = await _pumpAdventureGame(
+        tester,
+        treasureQuestionGroups: _treasureGroups(),
+        onTreasureChestTriggered: (_) => triggers++,
+      );
+      final chest = game.treasureChests.firstWhere((chest) => chest.isFloating);
+      game.player.position.x = chest.position.x;
+      game.update(0);
+      expect(triggers, 0);
+
+      game.jump();
+      for (var i = 0; i < 60 && triggers == 0; i++) {
+        game.update(1 / 60);
+      }
+      expect(triggers, 1);
+      expect(game.activeTreasureChest, same(chest));
+      expect(game.isOnGround, isFalse);
+    });
+  });
+
+  group('Adventure obstacles', () {
+    testWidgets('three varied obstacles keep safe route clearance',
+        (tester) async {
+      final game = await _pumpAdventureGame(
+        tester,
+        obstaclesEnabled: true,
+        treasureQuestionGroups: _treasureGroups(),
+      );
+      final obstacles = game.obstacles.toList()
+        ..sort((a, b) => a.basePosition.x.compareTo(b.basePosition.x));
+      final groundChests =
+          game.treasureChests.where((chest) => !chest.isFloating).toList();
+      final guardianLeft = game.guardian.position.x - game.guardian.size.x / 2;
+
+      expect(obstacles, hasLength(3));
+      expect(
+        obstacles.where((obstacle) => obstacle.isMoving),
+        hasLength(1),
+      );
+      expect(
+        obstacles.map((obstacle) => obstacle.kind),
+        containsAll([
+          ObstacleKind.gardenRock,
+          ObstacleKind.thornyBush,
+          ObstacleKind.rollingLantern,
+        ]),
+      );
+
+      for (var i = 0; i < obstacles.length; i++) {
+        final obstacle = obstacles[i];
+        final leftEdge = obstacle.basePosition.x -
+            obstacle.patrolRange -
+            obstacle.size.x * 0.38;
+        final rightEdge = obstacle.basePosition.x +
+            obstacle.patrolRange +
+            obstacle.size.x * 0.38;
+
+        expect(
+          obstacle.basePosition.x,
+          greaterThanOrEqualTo(
+            QalbuKidsAdventureGame.playerStartX +
+                QalbuKidsAdventureGame.obstacleStartClearance,
+          ),
+        );
+        expect(leftEdge, greaterThan(QalbuKidsAdventureGame.playerStartX));
+        expect(
+          obstacle.patrolRange,
+          lessThanOrEqualTo(QalbuKidsAdventureGame.obstaclePatrolMargin),
+        );
+        expect(
+          rightEdge,
+          lessThanOrEqualTo(
+            guardianLeft - QalbuKidsAdventureGame.obstacleGuardianClearance,
+          ),
+        );
+        for (final chest in groundChests) {
+          final chestGap = rightEdge < chest.position.x
+              ? chest.position.x - rightEdge
+              : leftEdge - chest.position.x;
+          expect(
+            chestGap,
+            greaterThan(40),
+            reason: 'Obstacle ${obstacle.kind} is too close to a ground chest.',
+          );
+        }
+        if (i > 0) {
+          expect(
+            obstacle.basePosition.x - obstacles[i - 1].basePosition.x,
+            greaterThanOrEqualTo(
+              QalbuKidsAdventureGame.obstacleFallbackMinSpacing,
+            ),
+          );
+        }
+      }
+    });
+
+    testWidgets('rolling lanterns move back and forth inside their patrol',
+        (tester) async {
+      final game = await _pumpAdventureGame(
+        tester,
+        obstaclesEnabled: true,
+      );
+      final lantern =
+          game.obstacles.firstWhere((obstacle) => obstacle.isMoving);
+      final initialX = lantern.position.x;
+      final period = 2 * pi / lantern.speed;
+      final samples = <double>[initialX];
+
+      for (var i = 0; i < 120; i++) {
+        lantern.update(period / 120);
+        samples.add(lantern.position.x);
+      }
+
+      final cycleSamples = samples.sublist(0, samples.length - 1);
+      final minX = cycleSamples.reduce(min);
+      final maxX = cycleSamples.reduce(max);
+      final maxIndex = cycleSamples.indexOf(maxX);
+      expect(maxX - minX, greaterThan(lantern.patrolRange * 1.9));
+      expect(samples.first, closeTo(initialX, 0.0001));
+      expect(samples.last, closeTo(initialX, 0.0001));
+      expect(
+        cycleSamples[(maxIndex - 1) % cycleSamples.length],
+        lessThan(maxX),
+      );
+      expect(
+        cycleSamples[(maxIndex + 1) % cycleSamples.length],
+        lessThan(maxX),
+      );
+      for (final sample in samples) {
+        expect(
+          sample,
+          inInclusiveRange(
+            lantern.basePosition.x - lantern.patrolRange - 0.0001,
+            lantern.basePosition.x + lantern.patrolRange + 0.0001,
+          ),
+        );
+      }
+    });
+
+    testWidgets('obstacle impact resets Zaid but preserves coins and chests',
+        (tester) async {
+      var hits = 0;
+      final game = await _pumpAdventureGame(
+        tester,
+        obstaclesEnabled: true,
+        treasureQuestionGroups: _treasureGroups(),
+        onTreasureChestTriggered: (_) {},
+        onObstacleHit: () => hits++,
+      );
+      final coin = game.coins.first;
+      game.player.position.x = coin.position.x;
+      game.update(0);
+      expect(coin.isCollected, isTrue);
+
+      final chest = game.treasureChests
+          .firstWhere((treasureChest) => !treasureChest.isFloating);
+      game.player.position.x = chest.position.x;
+      game.update(0);
+      game.completeTreasureChest(chest);
+      expect(chest.isOpened, isTrue);
+      final collectedBeforeHit = game.collectedCoins;
+
+      final obstacle = game.obstacles.first;
+      game.player.position.setValues(
+        obstacle.position.x,
+        game.player.groundY - 12,
+      );
+      game.isOnGround = false;
+      game.velocityY = 180;
+      game.update(0);
+
+      expect(hits, 1);
+      expect(game.player.position.x, QalbuKidsAdventureGame.playerStartX);
+      expect(
+        game.player.position.y,
+        closeTo(game.player.groundY, 0.001),
+      );
+      expect(game.velocityY, 0);
+      expect(game.isOnGround, isTrue);
+      expect(game.isShaking, isTrue);
+      expect(game.collectedCoins, greaterThanOrEqualTo(collectedBeforeHit));
+      expect(coin.isCollected, isTrue);
+      expect(chest.isOpened, isTrue);
+
+      game.update(QalbuKidsAdventureGame.obstacleShakeDuration);
+      expect(game.isShaking, isFalse);
+    });
+
+    testWidgets('one jump clears a static obstacle without an impact',
+        (tester) async {
+      var hits = 0;
+      final game = await _pumpAdventureGame(
+        tester,
+        obstaclesEnabled: true,
+        onObstacleHit: () => hits++,
+      );
+      final obstacle =
+          game.obstacles.firstWhere((candidate) => !candidate.isMoving);
+      final bodyHalfWidth =
+          game.player.size.x * QalbuKidsAdventureGame.playerBodyWidthRatio / 2;
+      final clearedX =
+          obstacle.position.x + obstacle.size.x * 0.32 + bodyHalfWidth + 2;
+      game.player.position.x = obstacle.position.x - 90;
+      game.jump();
+      game.setMoveRight(true);
+
+      for (var i = 0; i < 120 && game.player.position.x < clearedX; i++) {
+        game.update(1 / 120);
+      }
+      game.stopMoving();
+
+      expect(hits, 0);
+      expect(game.isOnGround, isFalse);
+      expect(game.player.position.x, greaterThanOrEqualTo(clearedX));
+    });
+
+    testWidgets('forward and jump controls clear a last-moment obstacle',
+        (tester) async {
+      final game = await _pumpAdventureScreen(tester, obstaclesEnabled: true);
+      for (final chest in game.treasureChests) {
+        chest.open();
+      }
+      final obstacle =
+          game.obstacles.firstWhere((candidate) => !candidate.isMoving);
+      final bodyHalfWidth =
+          game.player.size.x * QalbuKidsAdventureGame.playerBodyWidthRatio / 2;
+      final obstacleHalfWidth = obstacle.size.x * 0.32;
+      final clearedX =
+          obstacle.position.x + obstacleHalfWidth + bodyHalfWidth + 2;
+      game.player.position.x =
+          obstacle.position.x - obstacleHalfWidth - bodyHalfWidth - 1;
+
+      final forwardControl = find.byIcon(Icons.arrow_forward_ios_rounded);
+      final jumpControl = find.byKey(const ValueKey('adventure-jump'));
+      final forwardGesture = await tester.startGesture(
+        tester.getCenter(forwardControl),
+        pointer: 1,
+      );
+      await tester.pump();
+      game.update(0);
+      expect(game.fsm.playerState, PlayerState.walk);
+
+      final jumpGesture = await tester.startGesture(
+        tester.getCenter(jumpControl),
+        pointer: 2,
+      );
+      expect(game.isOnGround, isFalse);
+      for (var i = 0; i < 120 && game.player.position.x < clearedX; i++) {
+        game.update(1 / 120);
+      }
+      await jumpGesture.up();
+      await forwardGesture.up();
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      expect(game.player.position.x, greaterThanOrEqualTo(clearedX));
+      expect(
+        game.player.position.x,
+        greaterThan(QalbuKidsAdventureGame.playerStartX),
+      );
+      expect(
+        find.byKey(const ValueKey('adventure-obstacle-warning')),
+        findsNothing,
+      );
     });
   });
 
@@ -143,7 +888,7 @@ void main() {
     );
 
     game.setMoveRight(true);
-    for (var i = 0; i < 80 && triggers == 0; i++) {
+    for (var i = 0; i < 180 && triggers == 0; i++) {
       game.update(0.1);
       await tester.pump(const Duration(milliseconds: 100));
     }
@@ -228,7 +973,10 @@ void main() {
     expect(game.fsm.playerState, PlayerState.idle);
     expect(game.gate.sprite, same(closedSprite));
     expect(game.player.position.x, QalbuKidsAdventureGame.playerStartX);
-    expect(game.player.position.y, game.player.groundY);
+    expect(
+      game.player.position.y,
+      closeTo(game.player.groundY, 0.001),
+    );
     expect(game.player.scale.x, 1);
     expect(game.player.scale.y, 1);
     expect(game.player.playing, isFalse);
@@ -247,6 +995,159 @@ void main() {
   });
 
   group('Adventure visuals', () {
+    test('scenery assets follow the island with safe defaults', () {
+      final pulau1 = QalbuKidsAdventureGame(onGateTriggered: () {});
+      final pulau2 = QalbuKidsAdventureGame(
+        onGateTriggered: () {},
+        pulauId: 2,
+      );
+      final pulau3 = QalbuKidsAdventureGame(
+        onGateTriggered: () {},
+        pulauId: 3,
+      );
+      final pulau4 = QalbuKidsAdventureGame(
+        onGateTriggered: () {},
+        pulauId: 4,
+      );
+
+      expect(pulau1.selectedSkyAsset, 'bg_langit_masjid.png');
+      expect(pulau1.selectedRoadAsset, 'ground_jalan.png');
+      expect(pulau2.selectedSkyAsset, 'bg_pulau_2.png');
+      expect(pulau2.selectedSkyAssetFallback, 'bg_pulau_2.jpeg');
+      expect(pulau2.selectedRoadAsset, 'ground_pulau_2.png');
+      expect(pulau3.selectedSkyAsset, 'bg_pulau_3.png');
+      expect(pulau3.selectedSkyAssetFallback, 'bg_pulau_3.jpeg');
+      expect(pulau3.selectedRoadAsset, 'ground_pulau_3.png');
+      expect(pulau4.selectedSkyAsset, 'bg_pulau_4.png');
+      expect(pulau4.selectedSkyAssetFallback, 'bg_pulau_4.jpeg');
+      expect(pulau4.selectedRoadAsset, 'ground_pulau_4.png');
+    });
+
+    testWidgets('Pulau 3 loads its dedicated scenery and road', (tester) async {
+      final game = await _pumpAdventureGame(tester, pulauId: 3);
+
+      expect(game.selectedSkyAsset, 'bg_pulau_3.png');
+      expect(game.selectedRoadAsset, 'ground_pulau_3.png');
+    });
+
+    testWidgets('Pulau 4 loads its dedicated scenery and road', (tester) async {
+      final game = await _pumpAdventureGame(tester, pulauId: 4);
+
+      expect(game.selectedSkyAsset, 'bg_pulau_4.png');
+      expect(game.selectedRoadAsset, 'ground_pulau_4.png');
+    });
+
+    testWidgets('Pulau 2 keeps feet and collectibles on the bridge',
+        (tester) async {
+      final game = await _pumpAdventureGame(
+        tester,
+        pulauId: 2,
+        treasureQuestionGroups: [
+          [
+            {
+              'pertanyaan': 'Air suci disebut?',
+              'opsi': ['Ma thahur', 'Najis', 'Biasa', 'Keruh'],
+              'jawabanBenar': 0,
+            },
+          ],
+        ],
+      );
+      expect(
+        game.groundHeight,
+        closeTo(
+          game.size.y * QalbuKidsAdventureGame.groundHeightRatio,
+          0.001,
+        ),
+      );
+      expect(
+        game.surfaceY,
+        closeTo(
+          game.size.y -
+              (game.groundHeight * QalbuKidsAdventureGame.surfaceDepthRatio),
+          0.001,
+        ),
+      );
+      expect(game.player.position.y, closeTo(game.surfaceY, 0.001));
+      expect(
+        game.player.size.y,
+        closeTo(
+          game.size.y * QalbuKidsAdventureGame.playerHeightRatio,
+          0.001,
+        ),
+      );
+      expect(game.gate.position.x, QalbuKidsAdventureGame.worldWidth - 260);
+      expect(
+        game.gate.position.y,
+        closeTo(
+          game.surfaceY + QalbuKidsAdventureGame.gateGroundOffset,
+          0.001,
+        ),
+      );
+      expect(
+        game.gate.size.y,
+        closeTo(
+          game.size.y * QalbuKidsAdventureGame.gateHeightRatio,
+          0.001,
+        ),
+      );
+      expect(
+        game.guardian.position.x,
+        closeTo(game.gate.position.x - (game.gate.size.x * 0.38), 0.001),
+      );
+      expect(game.guardian.position.y, closeTo(game.surfaceY, 0.001));
+      expect(
+        game.guardian.size.y,
+        closeTo(
+          game.size.y * QalbuKidsAdventureGame.guardianHeightRatio,
+          0.001,
+        ),
+      );
+      for (final coin in game.coins) {
+        expect(
+          coin.basePosition.y,
+          closeTo(game.surfaceY - coin.heightAboveGround, 0.001),
+        );
+        expect(
+          coin.position.x + coin.size.x / 2,
+          lessThan(game.guardian.position.x - 180),
+        );
+      }
+      for (final chest in game.treasureChests) {
+        expect(
+          chest.basePosition.y,
+          closeTo(game.surfaceY - chest.heightAboveGround, 0.001),
+        );
+        expect(
+          chest.position.x + chest.size.x / 2,
+          lessThan(game.guardian.position.x - 180),
+        );
+      }
+
+      final renderer =
+          game.skyParallax.parallax!.layers.single.parallaxRenderer;
+      expect(renderer.repeat, ImageRepeat.repeatX);
+      expect(renderer.fill, LayerFill.height);
+      expect(renderer.alignment, Alignment.bottomLeft);
+
+      final tile = game.backgroundTiles.first;
+      expect(tile.sprite!.srcSize.x, QalbuKidsAdventureGame.roadContentWidth);
+      expect(tile.sprite!.srcSize.y, QalbuKidsAdventureGame.roadContentHeight);
+      expect(
+        tile.size.y,
+        closeTo(game.size.y * QalbuKidsAdventureGame.roadHeightRatio, 0.001),
+      );
+      expect(tile.position.y, closeTo(game.size.y, 0.001));
+    });
+
+    testWidgets('AdventureScreen passes the active island to the game',
+        (tester) async {
+      final game = await _pumpAdventureScreen(tester, pulauId: 2);
+
+      expect(game.pulauId, 2);
+      expect(game.selectedSkyAsset, 'bg_pulau_2.png');
+      expect(game.selectedRoadAsset, 'ground_pulau_2.png');
+    });
+
     testWidgets('one-way road tiles cover the bounded world seamlessly',
         (tester) async {
       final game = await _pumpAdventureGame(tester);
@@ -474,13 +1375,11 @@ void main() {
       expect(game.guardian.position.y, closeTo(actorY, 0.001));
       expect(
         game.gate.position.y,
-        closeTo(groundY + QalbuKidsAdventureGame.gateGroundOffset, 0.001),
+        closeTo(game.surfaceY + QalbuKidsAdventureGame.gateGroundOffset, 0.001),
       );
-      final gateLeft = game.gate.position.x - game.gate.size.x / 2;
-      final guardianRight = game.guardian.position.x + game.guardian.size.x / 2;
       expect(
-        guardianRight + QalbuKidsAdventureGame.guardianGateGap,
-        closeTo(gateLeft, 0.001),
+        game.guardian.position.x,
+        closeTo(game.gate.position.x - (game.gate.size.x * 0.38), 0.001),
       );
       expect(game.player.priority, 30);
       expect(game.gate.position.x, QalbuKidsAdventureGame.gateX);
@@ -496,7 +1395,7 @@ void main() {
       game.setMoveRight(true);
       game.update(0.05);
       final footLift = actorY - game.player.position.y;
-      expect(footLift, 0);
+      expect(footLift, closeTo(0, 0.001));
       expect(game.player.scale.y, lessThan(1));
       expect(
         game.player.scale.y,
@@ -511,12 +1410,14 @@ void main() {
     testWidgets('gate stands ahead of Zaid and faces the approach direction',
         (tester) async {
       final game = await _pumpAdventureGame(tester);
-      final gateLeft = game.gate.position.x - game.gate.size.x / 2;
-      final guardianRight = game.guardian.position.x + game.guardian.size.x / 2;
 
       expect(game.player.position.x, lessThan(game.guardian.position.x));
       expect(game.guardian.position.x, lessThan(game.gate.position.x));
-      expect(guardianRight, lessThan(gateLeft));
+      expect(
+        game.guardian.position.x,
+        closeTo(game.gate.position.x - (game.gate.size.x * 0.38), 0.001),
+      );
+      expect(game.guardian.priority, greaterThan(game.gate.priority));
       expect(game.gate.scale.x, 1);
       expect(game.gate.anchor, Anchor.bottomCenter);
     });
@@ -592,7 +1493,55 @@ void main() {
     });
   });
 
-  test('passing the adventure exam unlocks the badge and next island',
+  test('six correct answers unlock the next island without a trophy', () async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = StorageService();
+    await storage.init();
+
+    await unlockAdventureIslandProgress(
+      storage: storage,
+      pulauId: 1,
+      skor: 67,
+      jumlahBenar: 6,
+      bintang: 2,
+      nyawa: 8,
+    );
+
+    final states = await storage.getFsmStates();
+    expect(states[ProgressionFSM.islandKey(1)], LevelState.completed);
+    expect(states[ProgressionFSM.badgeKey(1)], LevelState.locked);
+    expect(states[ProgressionFSM.islandKey(2)], LevelState.unlocked);
+    expect(states[ProgressionFSM.stageKey(2, 1)], LevelState.unlocked);
+    expect(states[ProgressionFSM.badgeKey(2)], LevelState.locked);
+    expect((await storage.getLencana()).first, isFalse);
+    expect(await storage.getIslandStars(1), 2);
+  });
+
+  test('nine correct answers unlock the perfect island trophy', () async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = StorageService();
+    await storage.init();
+
+    await unlockAdventureIslandProgress(
+      storage: storage,
+      pulauId: 1,
+      skor: 100,
+      jumlahBenar: 9,
+      bintang: 3,
+      nyawa: 14,
+    );
+
+    final states = await storage.getFsmStates();
+    expect(states[ProgressionFSM.islandKey(1)], LevelState.completed);
+    expect(states[ProgressionFSM.badgeKey(1)], LevelState.unlocked);
+    expect(states[ProgressionFSM.islandKey(2)], LevelState.unlocked);
+    expect((await storage.getLencana()).first, isTrue);
+    expect(await storage.getIslandStars(1), 3);
+    final preferences = await SharedPreferences.getInstance();
+    expect(preferences.getBool('lencana_1'), isTrue);
+  });
+
+  test('failing the adventure exam saves stars without unlocking progression',
       () async {
     SharedPreferences.setMockInitialValues({});
     final storage = StorageService();
@@ -601,28 +1550,9 @@ void main() {
     await unlockAdventureIslandProgress(
       storage: storage,
       pulauId: 1,
-      skor: 60,
-      nyawa: 2,
-    );
-
-    final states = await storage.getFsmStates();
-    expect(states[ProgressionFSM.islandKey(1)], LevelState.completed);
-    expect(states[ProgressionFSM.badgeKey(1)], LevelState.unlocked);
-    expect(states[ProgressionFSM.islandKey(2)], LevelState.unlocked);
-    expect(states[ProgressionFSM.stageKey(2, 1)], LevelState.unlocked);
-    expect(states[ProgressionFSM.badgeKey(2)], LevelState.locked);
-    expect((await storage.getLencana()).first, isTrue);
-  });
-
-  test('failing the adventure exam does not unlock progression', () async {
-    SharedPreferences.setMockInitialValues({});
-    final storage = StorageService();
-    await storage.init();
-
-    await unlockAdventureIslandProgress(
-      storage: storage,
-      pulauId: 1,
-      skor: 59,
+      skor: 56,
+      jumlahBenar: 5,
+      bintang: 1,
       nyawa: 5,
     );
 
@@ -631,6 +1561,35 @@ void main() {
     expect(states[ProgressionFSM.badgeKey(1)], LevelState.locked);
     expect(states[ProgressionFSM.islandKey(2)], LevelState.locked);
     expect((await storage.getLencana()).first, isFalse);
+    expect(await storage.getIslandStars(1), 1);
+  });
+
+  test('later runs preserve better stars and an already earned trophy',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = StorageService();
+    await storage.init();
+
+    await unlockAdventureIslandProgress(
+      storage: storage,
+      pulauId: 1,
+      skor: 100,
+      jumlahBenar: 9,
+      bintang: 3,
+      nyawa: 14,
+    );
+    await unlockAdventureIslandProgress(
+      storage: storage,
+      pulauId: 1,
+      skor: 67,
+      jumlahBenar: 6,
+      bintang: 2,
+      nyawa: 8,
+    );
+
+    expect(await storage.getIslandStars(1), 3);
+    expect((await storage.getLencana()).first, isTrue);
+    expect(await storage.getTotalBintang(), 3);
   });
 
   testWidgets('correct adventure answer adds one heart and shows feedback',
@@ -646,6 +1605,51 @@ void main() {
 
     expect(await storage.getNyawa(), 5);
     expect(find.text('✨ MasyaAllah, Benar! +1 ❤️ Nyawa'), findsOneWidget);
+  });
+
+  testWidgets('correct chest answer adds two hearts with treasure feedback',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({StorageService.keyNyawa: 4});
+    final storage = StorageService();
+    await storage.init();
+    final question = BankSoal.getSoalPetualangan(1).first;
+    await _pumpQuiz(
+      tester,
+      nyawa: 4,
+      mode: AdventureQuizMode.treasureChest,
+      questions: [question],
+    );
+
+    final correct = _optionForCurrentQuestion(tester, correct: true);
+    await tester.tap(find.widgetWithText(ElevatedButton, correct));
+    await tester.pumpAndSettle();
+
+    expect(await storage.getNyawa(), 6);
+    expect(find.text('✨ Benar! Harta Karun +2 ❤️ Nyawa'), findsOneWidget);
+  });
+
+  testWidgets('wrong chest answer keeps lives safe with gentle feedback',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({StorageService.keyNyawa: 3});
+    final storage = StorageService();
+    await storage.init();
+    final question = BankSoal.getSoalPetualangan(1).first;
+    await _pumpQuiz(
+      tester,
+      nyawa: 3,
+      mode: AdventureQuizMode.treasureChest,
+      questions: [question],
+    );
+
+    final wrong = _optionForCurrentQuestion(tester, correct: false);
+    await tester.tap(find.widgetWithText(ElevatedButton, wrong));
+    await tester.pumpAndSettle();
+
+    expect(await storage.getNyawa(), 3);
+    expect(
+      find.text('💡 Belum tepat! Tenang, nyawamu aman di peti harta karun'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('wrong answer at one heart ends the adventure quiz immediately',
@@ -665,58 +1669,423 @@ void main() {
     expect(find.text(_pesanNyawaHabis), findsOneWidget);
   });
 
-  testWidgets('answering every adventure question correctly passes the exam',
+  testWidgets(
+      'answering all nine gate questions correctly earns a perfect result',
       (tester) async {
-    SharedPreferences.setMockInitialValues({StorageService.keyNyawa: 5});
-    final storage = StorageService();
-    await storage.init();
-    AdventureQuizResult? result;
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: ElevatedButton(
-              onPressed: () async {
-                result = await showDialog<AdventureQuizResult>(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (_) => const AdventureQuizDialog(
-                    pulauId: 1,
-                    namaPulau: 'Pondasi Islam',
-                    initialNyawa: 5,
-                  ),
-                );
-              },
-              child: const Text('Buka Ujian'),
-            ),
-          ),
-        ),
-      ),
+    final result = await _answerGateQuiz(
+      tester,
+      correctCount: 9,
+      initialNyawa: 5,
+      onResult: () {
+        expect(find.text('Bintang Pulau: 3/3'), findsOneWidget);
+        expect(
+          find.text(
+              '🏆 LUAR BIASA! 9/9 Benar Sempurna! Piala Penghargaan Pulau 1 Terbuka!'),
+          findsOneWidget,
+        );
+      },
     );
 
-    await tester.tap(find.text('Buka Ujian'));
-    await tester.pumpAndSettle();
+    expect(result.passed, isTrue);
+    expect(result.jumlahBenar, 9);
+    expect(result.totalQuestions, 9);
+    expect(result.stars, 3);
+    expect(result.perfect, isTrue);
+    expect(result.nyawa, 14);
+    expect(await StorageService().getNyawa(), 14);
+  });
 
-    for (var i = 0; i < 6; i++) {
-      final correct = _optionForCurrentQuestion(tester, correct: true);
-      await tester.tap(find.widgetWithText(ElevatedButton, correct));
+  for (final scenario in [
+    (correct: 0, stars: 0, passed: false),
+    (correct: 3, stars: 1, passed: false),
+    (correct: 4, stars: 2, passed: false),
+    (correct: 6, stars: 2, passed: true),
+    (correct: 7, stars: 3, passed: true),
+  ]) {
+    testWidgets('${scenario.correct}/9 correct gives ${scenario.stars} stars',
+        (tester) async {
+      final result = await _answerGateQuiz(
+        tester,
+        correctCount: scenario.correct,
+        initialNyawa: 20,
+        onResult: () {
+          expect(
+              find.text('Bintang Pulau: ${scenario.stars}/3'), findsOneWidget);
+          if (!scenario.passed) {
+            expect(
+              find.text(
+                  'Kamu menjawab ${scenario.correct}/9 benar. Minimal 6 benar untuk membuka gerbang pulau berikutnya!'),
+              findsOneWidget,
+            );
+          }
+        },
+      );
+
+      expect(result.passed, scenario.passed);
+      expect(result.jumlahBenar, scenario.correct);
+      expect(result.stars, scenario.stars);
+      expect(result.completedAll, isTrue);
+      expect(result.perfect, isFalse);
+    });
+  }
+
+  testWidgets(
+      'AdventureScreen splits one shuffled pool into 11 chest and 9 gate questions',
+      (tester) async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+            SystemChannels.platform, (call) async => null);
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+    SharedPreferences.setMockInitialValues({});
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(960, 540);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    late QalbuKidsAdventureGame game;
+    await tester.runAsync(() async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: AdventureScreen(pulauId: 1, namaPulau: 'Pondasi Islam'),
+        ),
+      );
+      await tester.pump();
+      final gameFinder =
+          find.byWidgetPredicate((widget) => widget is GameWidget);
+      final gameWidget = tester.widget<GameWidget>(gameFinder);
+      game = gameWidget.game as QalbuKidsAdventureGame;
+      await Future<void>.sync(() => game.toBeLoaded())
+          .timeout(const Duration(seconds: 5));
+      await tester.pump();
+    });
+    game.pauseEngine();
+
+    final chestIds = game.treasureChests
+        .expand((chest) => chest.questions)
+        .map((question) => question['id'].toString())
+        .toList();
+    expect(chestIds, hasLength(11));
+    expect(chestIds.toSet(), hasLength(11));
+
+    game.player.position.x = game.guardian.position.x -
+        QalbuKidsAdventureGame.guardianCollisionDistance;
+    game.update(0);
+    tester.binding.scheduleFrame();
+    await tester.pumpAndSettle(
+      const Duration(milliseconds: 16),
+      EnginePhase.sendSemanticsUpdate,
+      const Duration(seconds: 2),
+    );
+
+    final dialog =
+        tester.widget<AdventureQuizDialog>(find.byType(AdventureQuizDialog));
+    final gateIds =
+        dialog.questions!.map((question) => question['id'].toString()).toList();
+    expect(gateIds, hasLength(9));
+    expect(gateIds.toSet(), hasLength(9));
+    expect({...chestIds, ...gateIds}, hasLength(20));
+    expect(
+      {...chestIds, ...gateIds},
+      unorderedEquals(
+        BankSoal.bank
+            .where((question) => question['pulauId'] == 1)
+            .map((question) => question['id'].toString()),
+      ),
+    );
+    for (final question in dialog.questions!) {
+      final options = (question['opsi'] as List).cast<String>();
+      expect(options.toSet(), hasLength(4));
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('a failed gate exam still saves stars without unlocking progress',
+      (tester) async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+            SystemChannels.platform, (call) async => null);
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+    SharedPreferences.setMockInitialValues({StorageService.keyNyawa: 20});
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(960, 540);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    late QalbuKidsAdventureGame game;
+    await tester.runAsync(() async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: AdventureScreen(pulauId: 1, namaPulau: 'Pondasi Islam'),
+        ),
+      );
+      await tester.pump();
+      final gameFinder =
+          find.byWidgetPredicate((widget) => widget is GameWidget);
+      final gameWidget = tester.widget<GameWidget>(gameFinder);
+      game = gameWidget.game as QalbuKidsAdventureGame;
+      await Future<void>.sync(() => game.toBeLoaded())
+          .timeout(const Duration(seconds: 5));
+      await tester.pump();
+    });
+    game.pauseEngine();
+
+    game.player.position.x = game.guardian.position.x -
+        QalbuKidsAdventureGame.guardianCollisionDistance;
+    game.update(0);
+    tester.binding.scheduleFrame();
+    await tester.pumpAndSettle(
+      const Duration(milliseconds: 16),
+      EnginePhase.sendSemanticsUpdate,
+      const Duration(seconds: 2),
+    );
+
+    for (var i = 0; i < 9; i++) {
+      final option = _optionForCurrentQuestion(tester, correct: i < 3);
+      await tester.tap(find.widgetWithText(ElevatedButton, option));
       await tester.pumpAndSettle();
-      await tester.tap(find.text(i == 5 ? 'Lihat Hasil' : 'Lanjut'));
+      await tester.tap(find.text(i == 8 ? 'Lihat Hasil' : 'Lanjut'));
       await tester.pumpAndSettle();
     }
 
-    expect(result, isNotNull);
-    expect(result!.passed, isTrue);
-    expect(result!.skor, 100);
-    expect(result!.nyawa, 11);
-    expect(await storage.getNyawa(), 11);
+    expect(find.text('Bintang Pulau: 1/3'), findsOneWidget);
+    await tester.tap(find.text('Keluar dari Ujian'));
+    await tester.pump();
+    game.pauseEngine();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.runAsync(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    });
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('adventure-quiz-failed-notification')),
+      findsOneWidget,
+    );
+    final storage = StorageService();
+    expect(await tester.runAsync(() => storage.getIslandStars(1)), 1);
+    expect(
+      await tester.runAsync(
+        () => storage.getLevelState(ProgressionFSM.islandKey(2)),
+      ),
+      LevelState.locked,
+    );
+    final badges = await tester.runAsync(() => storage.getLencana());
+    expect(badges, isNotNull);
+    expect(badges!.first, isFalse);
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('tapping an unlocked map island opens AdventureScreen',
+  group('Adventure countdown and feedback', () {
+    const obstacleWarning =
+        '⚠️ Ups! Kena rintangan! Ayo lompati dan mulai dari awal jalur ya!';
+    const timeoutMessage =
+        '⏰ Waktu Habis! Yuk coba lagi dan lebih sigap melompati rintangan serta menjawab kuis!';
+    final timerFinder = find.byKey(const ValueKey('adventure-timer'));
+    final timeoutFinder =
+        find.byKey(const ValueKey('adventure-timeout-dialog'));
+
+    String timerText(WidgetTester tester) {
+      final text = tester.widget<Text>(
+        find.descendant(of: timerFinder, matching: find.byType(Text)),
+      );
+      return text.data!;
+    }
+
+    Future<void> openChestQuiz(
+      WidgetTester tester,
+      QalbuKidsAdventureGame game,
+    ) async {
+      final chest = game.treasureChests
+          .firstWhere((treasureChest) => !treasureChest.isFloating);
+      game.player.position.x = chest.position.x;
+      game.update(0);
+      tester.binding.scheduleFrame();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(AdventureQuizDialog), findsOneWidget);
+    }
+
+    testWidgets('shows a centered timer without obstacles and counts down',
+        (tester) async {
+      final game = await _pumpAdventureScreen(tester);
+
+      expect(timerText(tester), '⏱️ 03:00');
+      expect(game.obstacles, isEmpty);
+      expect(tester.getCenter(timerFinder).dx, closeTo(480, 1));
+      expect(tester.getCenter(timerFinder).dy, lessThan(60));
+
+      await tester.pump(const Duration(seconds: 1));
+      expect(timerText(tester), '⏱️ 02:59');
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('obstacle impact shows the exact friendly warning banner',
+        (tester) async {
+      final game = await _pumpAdventureScreen(tester, obstaclesEnabled: true);
+      final obstacle = game.obstacles.first;
+      game.player.position.x = obstacle.position.x;
+      game.update(0);
+      await tester.pump();
+
+      final warning = find.byKey(const ValueKey('adventure-obstacle-warning'));
+      expect(warning, findsOneWidget);
+      expect(find.descendant(of: warning, matching: find.text(obstacleWarning)),
+          findsOneWidget);
+      final banner = tester.widget<SnackBar>(warning);
+      final warningText = tester.widget<Text>(
+        find.descendant(of: warning, matching: find.text(obstacleWarning)),
+      );
+      expect(banner.backgroundColor, Colors.amber[50]);
+      expect(warningText.style!.color, Colors.brown[800]);
+      expect(game.player.position.x, QalbuKidsAdventureGame.playerStartX);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('timer turns red and pulses below thirty seconds',
+        (tester) async {
+      await _pumpAdventureScreen(
+        tester,
+        timeLimit: const Duration(seconds: 31),
+      );
+      final normalText = tester.widget<Text>(
+        find.descendant(of: timerFinder, matching: find.text('⏱️ 00:31')),
+      );
+      expect(normalText.style!.color, Colors.teal[800]);
+
+      await tester.pump(const Duration(seconds: 1));
+      expect(timerText(tester), '⏱️ 00:30');
+      final thresholdText = tester.widget<Text>(
+        find.descendant(of: timerFinder, matching: find.text('⏱️ 00:30')),
+      );
+      expect(thresholdText.style!.color, Colors.teal[800]);
+
+      await tester.pump(const Duration(seconds: 1));
+      expect(timerText(tester), '⏱️ 00:29');
+      final urgentText = tester.widget<Text>(
+        find.descendant(of: timerFinder, matching: find.text('⏱️ 00:29')),
+      );
+      expect(urgentText.style!.color, Colors.red[700]);
+
+      await tester.pump(const Duration(milliseconds: 550));
+      final dimOpacity = tester.widget<Opacity>(
+        find.descendant(of: timerFinder, matching: find.byType(Opacity)),
+      );
+      await tester.pump(const Duration(milliseconds: 275));
+      final brightOpacity = tester.widget<Opacity>(
+        find.descendant(of: timerFinder, matching: find.byType(Opacity)),
+      );
+      expect(dimOpacity.opacity, lessThan(brightOpacity.opacity));
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('countdown keeps running during a chest quiz', (tester) async {
+      final game = await _pumpAdventureScreen(
+        tester,
+        timeLimit: const Duration(seconds: 3),
+        preferences: {StorageService.keyNyawa: 20},
+      );
+      await openChestQuiz(tester, game);
+      final chest = game.activeTreasureChest!;
+
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.byType(AdventureQuizDialog), findsOneWidget);
+      expect(timerText(tester), '⏱️ 00:01');
+
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump();
+      expect(find.byType(AdventureQuizDialog), findsNothing);
+      expect(timeoutFinder, findsOneWidget);
+      expect(find.text(timeoutMessage), findsOneWidget);
+      expect(game.activeTreasureChest, isNull);
+      expect(chest.isOpened, isFalse);
+      expect(game.paused, isTrue);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('timeout stops play and retry starts a fresh island',
+        (tester) async {
+      final game = await _pumpAdventureScreen(
+        tester,
+        timeLimit: const Duration(seconds: 1),
+      );
+      game.resumeEngine();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+
+      expect(timerText(tester), '⏱️ 00:00');
+      expect(timeoutFinder, findsOneWidget);
+      expect(find.text(timeoutMessage), findsOneWidget);
+      expect(find.text('Ulangi Pulau'), findsOneWidget);
+      expect(find.text('Kembali ke Peta'), findsOneWidget);
+      expect(game.fsm.gateState, GateState.locked);
+      expect(game.paused, isTrue);
+
+      await tester.tap(find.text('Ulangi Pulau'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      final gameWidget = tester.widget<GameWidget>(
+        find.byWidgetPredicate((widget) => widget is GameWidget),
+      );
+      final retryGame = gameWidget.game as QalbuKidsAdventureGame;
+      await tester.runAsync(() async {
+        await Future<void>.sync(() => retryGame.toBeLoaded())
+            .timeout(const Duration(seconds: 5));
+      });
+      await tester.pump();
+      retryGame.pauseEngine();
+
+      expect(retryGame, isNot(same(game)));
+      expect(retryGame.player.position.x, QalbuKidsAdventureGame.playerStartX);
+      expect(retryGame.collectedCoins, 0);
+      expect(timerText(tester), '⏱️ 03:00');
+      expect(timeoutFinder, findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('timeout map action returns directly to the island map',
+        (tester) async {
+      await _pumpAdventureScreen(
+        tester,
+        timeLimit: const Duration(seconds: 1),
+      );
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+      await tester.tap(find.text('Kembali ke Peta'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AdventureScreen), findsNothing);
+      expect(find.byType(PetaScreen), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('opening the gate prevents a later timeout', (tester) async {
+      final game = await _pumpAdventureScreen(
+        tester,
+        timeLimit: const Duration(seconds: 1),
+      );
+      game.fsm.beginQuiz();
+      game.completeQuiz(60);
+      expect(game.fsm.gateState, GateState.unlocked);
+
+      await tester.pump(const Duration(seconds: 2));
+      expect(timerText(tester), '⏱️ 00:01');
+      expect(timeoutFinder, findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  });
+
+  testWidgets('choosing an unlocked map island opens AdventureScreen',
       (tester) async {
     tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(400, 800);
+    tester.view.physicalSize = const Size(960, 540);
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -732,9 +2101,18 @@ void main() {
     await tester.pumpAndSettle();
 
     final island = find.text('Pulau 1: Pondasi Islam');
-    await tester.ensureVisible(island);
-    await tester.pumpAndSettle();
-    await tester.tap(island);
+    final islandTap = tester.widget<GestureDetector>(
+      find
+          .ancestor(
+            of: island,
+            matching: find.byWidgetPredicate(
+              (widget) => widget is GestureDetector && widget.onTap != null,
+            ),
+          )
+          .first,
+    );
+    expect(islandTap.onTap, isNotNull);
+    islandTap.onTap!();
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
