@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'tahapan_pulau_screen.dart';
+import 'adventure_screen.dart';
 import '../core/fsm_controller.dart';
 import '../core/storage_service.dart';
 
@@ -101,7 +101,7 @@ class _PetaScreenState extends State<PetaScreen> {
                   child: GestureDetector(
                     onTap: unlocked
                         ? () async {
-                            await Navigator.push(context, MaterialPageRoute(builder: (_) => TahapanPulauScreen(pulauId: no, namaPulau: 'Pulau $no: ${p['nama']}')));
+                            await Navigator.push(context, MaterialPageRoute(builder: (_) => AdventureScreen(pulauId: no, namaPulau: p['nama'] as String)));
                             if (mounted) await _loadStatus();
                           }
                         : () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pulau ini masih terkunci!'), backgroundColor: Colors.red)),

@@ -1,8 +1,13 @@
+import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:qalbukids/core/fsm/adventure_fsm.dart';
 import 'package:qalbukids/core/fsm_controller.dart';
 import 'package:qalbukids/core/storage_service.dart';
 import 'package:qalbukids/data/bank_soal.dart';
+import 'package:qalbukids/game/qalbukids_adventure_game.dart';
+import 'package:qalbukids/screens/adventure_screen.dart';
 import 'package:qalbukids/screens/daily_quiz_screen.dart';
 import 'package:qalbukids/screens/home_screen.dart';
 import 'package:qalbukids/screens/kuis_ujian_screen.dart';
@@ -24,33 +29,6 @@ Future<void> tapCurrentAnswer(
 
   await tester.tap(find.widgetWithText(ElevatedButton, answer));
   await tester.pump();
-}
-
-Future<void> answerCurrentQuestion(
-  WidgetTester tester, {
-  required bool correct,
-}) async {
-  await tapCurrentAnswer(tester, correct: correct);
-  expect(
-    find.text(
-      correct
-          ? '✨ MasyaAllah, Benar! +1 ❤️ Nyawa'
-          : '❌ Kurang Tepat! -1 ❤️ Nyawa',
-    ),
-    findsOneWidget,
-  );
-  expect(find.byKey(const ValueKey('quiz-feedback-banner')), findsOneWidget);
-  await tester.pump(const Duration(seconds: 1));
-  await tester.pumpAndSettle();
-}
-
-Future<void> finishPassedQuiz(WidgetTester tester) async {
-  expect(find.text('LULUS!'), findsOneWidget);
-  await tester.tap(find.text('Lihat Pembukaan'));
-  await tester.pumpAndSettle();
-  expect(find.text('Pembukaan Baru!'), findsOneWidget);
-  await tester.tap(find.text('Kembali ke Tahapan'));
-  await tester.pumpAndSettle();
 }
 
 Future<void> openScreenFromLauncher(
@@ -77,17 +55,60 @@ Future<void> openScreenFromLauncher(
   await tester.pump(const Duration(milliseconds: 400));
 }
 
+Future<void> openAdventureExam(WidgetTester tester) async {
+  late QalbuKidsAdventureGame game;
+  await tester.tap(find.text('Pulau 1: Pondasi Islam'));
+  await tester.runAsync(() async {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(AdventureScreen), findsOneWidget);
+
+    final gameFinder = find.byWidgetPredicate((widget) => widget is GameWidget);
+    final gameWidget = tester.widget<GameWidget>(gameFinder);
+    game = gameWidget.game as QalbuKidsAdventureGame;
+    await Future<void>.sync(() => game.toBeLoaded())
+        .timeout(const Duration(seconds: 5));
+    await tester.pump();
+  });
+  expect(game.isLoaded, isTrue);
+
+  game.pauseEngine();
+  game.setMoveRight(true);
+  for (var i = 0; i < 80 && game.fsm.gateState != GateState.quizActive; i++) {
+    game.update(0.1);
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  game.stopMoving();
+  expect(game.fsm.gateState, GateState.quizActive);
+
+  tester.binding.scheduleFrame();
+  await tester.pumpAndSettle(
+    const Duration(milliseconds: 16),
+    EnginePhase.sendSemanticsUpdate,
+    const Duration(seconds: 2),
+  );
+  expect(find.byType(AdventureQuizDialog), findsOneWidget);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late StorageService storage;
 
   setUp(() async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+            SystemChannels.platform, (call) async => null);
     SharedPreferences.setMockInitialValues({
       StorageService.keyNama: 'Naya',
       StorageService.keyAvatar: 'aisyah',
     });
     storage = StorageService();
     await storage.init();
+  });
+
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null);
   });
 
   testWidgets('Pulau 1 is playable from home through Badge 1 unlock',
@@ -109,61 +130,33 @@ void main() {
 
     expect(find.text('Peta Petualangan'), findsOneWidget);
     expect(find.byIcon(Icons.lock), findsNWidgets(5));
-    await tester.tap(find.text('Pulau 1: Pondasi Islam'));
-    await tester.pumpAndSettle();
+    await openAdventureExam(tester);
 
-    for (var tahap = 1; tahap <= 4; tahap++) {
-      await tester.tap(find.text('Tahap $tahap: ${[
-        'Pemula',
-        'Dasar',
-        'Lanjutan',
-        'Ujian Pulau',
-      ][tahap - 1]}'));
+    for (var question = 0; question < 6; question++) {
+      await tapCurrentAnswer(tester, correct: true);
       await tester.pumpAndSettle();
-
-      expect(find.text('Kuis Pulau 1 - Tahap $tahap'), findsOneWidget);
-      expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
-      expect(find.text('30 s'), findsOneWidget);
-
-      for (var question = 0; question < 5; question++) {
-        await answerCurrentQuestion(tester, correct: true);
-      }
-
-      if (tahap == 4) {
-        expect(find.text('LULUS!'), findsOneWidget);
-        await tester.tap(find.text('Lihat Pembukaan'));
-        await tester.pumpAndSettle();
-        expect(
-          find.text('🎉 SELAMAT! LENCANA BARU TERBUKA! 🎉'),
-          findsOneWidget,
-        );
-        expect(find.text('Duta Pondasi Islam'), findsOneWidget);
-        expect(
-          find.text(
-            'Hebat! Kamu telah menamatkan Pulau 1 dan membuka Pulau 2!',
-          ),
-          findsOneWidget,
-        );
-        expect(find.byType(Image), findsOneWidget);
-        await tester.tap(find.text('Klaim Lencana & Lanjut'));
-        await tester.pumpAndSettle();
-      } else {
-        await finishPassedQuiz(tester);
-      }
-
-      expect(
-        await storage.getLevelState(ProgressionFSM.stageKey(1, tahap)),
-        LevelState.completed,
-      );
+      expect(find.text('✨ MasyaAllah, Benar! +1 ❤️ Nyawa'), findsOneWidget);
+      await tester.tap(find.text(question == 5 ? 'Lihat Hasil' : 'Lanjut'));
+      await tester.pumpAndSettle();
     }
 
-    expect(find.text('Selesai'), findsNWidgets(4));
-    expect(find.textContaining('bintang'), findsNothing);
-    await tester.tap(find.byIcon(Icons.arrow_back));
+    expect(find.text('Lencana Terbuka!'), findsOneWidget);
+    expect(find.text('Duta Pondasi Islam'), findsOneWidget);
+    expect(find.textContaining('Pulau 2 juga terbuka!'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('adventure-gate-open-notification')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Gerbang terbuka! Lanjut ke pulau berikutnya.'),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(ElevatedButton, 'Lanjut ke Pulau 2'),
+        findsOneWidget);
+    await tester.tap(find.text('Kembali ke Peta'));
     await tester.pumpAndSettle();
 
     expect(find.text('Peta Petualangan'), findsOneWidget);
-    expect(find.byIcon(Icons.lock), findsNWidgets(4));
     expect(
       await storage.getLevelState(ProgressionFSM.islandKey(1)),
       LevelState.completed,
@@ -172,6 +165,7 @@ void main() {
       await storage.getLevelState(ProgressionFSM.islandKey(2)),
       LevelState.unlocked,
     );
+    expect(find.byIcon(Icons.lock), findsNWidgets(4));
 
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();
@@ -183,13 +177,11 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('home-lives')),
-        matching: find.text('25'),
+        matching: find.text('11'),
       ),
       findsOneWidget,
     );
-    expect(await storage.getNyawa(), 25);
-    expect(
-        find.text('Lanjutkan: Pulau 2 - Tahap 1 (Thaharah)'), findsOneWidget);
+    expect(await storage.getNyawa(), 11);
     expect((await storage.getLencana()).first, isTrue);
 
     final preferences = await SharedPreferences.getInstance();
