@@ -8,6 +8,7 @@ import 'package:qalbukids/screens/home_screen.dart';
 import 'package:qalbukids/screens/lencana_screen.dart';
 import 'package:qalbukids/screens/peta_screen.dart';
 import 'package:qalbukids/screens/profile_setup_screen.dart';
+import 'package:qalbukids/screens/splash_screen.dart';
 import 'package:qalbukids/screens/toko_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -51,6 +52,39 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+  });
+
+  testWidgets('splash reveals the logo text before opening profile setup',
+      (tester) async {
+    await useLandscapeSize(tester);
+    await tester.pumpWidget(const MaterialApp(home: SplashScreen()));
+
+    final revealFinder = find.descendant(
+      of: find.byKey(const ValueKey('splash-text-reveal')),
+      matching: find.byType(FractionallySizedBox),
+    );
+    expect(
+      tester.widget<FractionallySizedBox>(revealFinder).widthFactor,
+      1,
+    );
+
+    await tester.pump(const Duration(milliseconds: 900));
+    final partialReveal =
+        tester.widget<FractionallySizedBox>(revealFinder).widthFactor!;
+    expect(partialReveal, lessThan(1));
+    expect(partialReveal, greaterThan(0));
+
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(
+      tester.widget<FractionallySizedBox>(revealFinder).widthFactor,
+      0,
+    );
+    expect(find.byType(SplashScreen), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 1600));
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.byType(SplashScreen), findsNothing);
+    expect(find.byType(ProfileSetupScreen), findsOneWidget);
   });
 
   testWidgets('fresh users see setup and empty names are rejected',

@@ -405,10 +405,10 @@ void main() {
     await storage.tambahNyawa(2);
     await storage.tambahKoin(5);
     await tester.tap(find.byIcon(Icons.arrow_back_rounded));
-    await tester.pumpAndSettle();
+    await pumpHomeFrames(tester);
     expectWalletValue(tester, 'belajar-coins', '45');
     expectWalletValue(tester, 'belajar-lives', '3');
-    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
     await pumpHomeFrames(tester);
     expectWalletValue(tester, 'home-coins', '45');
     expectWalletValue(tester, 'home-lives', '3');
@@ -417,7 +417,7 @@ void main() {
     await pumpHomeFrames(tester);
     await storage.tambahNyawa(2);
     await storage.tambahKoin(7);
-    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
     await pumpHomeFrames(tester);
     expectWalletValue(tester, 'home-coins', '52');
     expectWalletValue(tester, 'home-lives', '5');

@@ -279,17 +279,12 @@ void main() {
 
   testWidgets('Bab 4 exposes the fourth fasting invalidation point',
       (tester) async {
-    await _pumpDetail(tester, MateriData.dataBabBelajar[3]);
-    await tester.tap(find.byKey(const ValueKey('next-material-button')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('next-material-button')));
-    await tester.pumpAndSettle();
+    await _pumpDetail(tester, MateriData.dataBabBelajar[3], itemIndex: 2);
 
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('point-button-3')),
-      200,
-      scrollable: _materialScrollable(),
-    );
+    expect(find.text('Hal yang Membatalkan Puasa'), findsOneWidget);
+    expect(find.textContaining('(Safinatun Najah)'), findsNothing);
+
+    await _reveal(tester, find.byKey(const ValueKey('point-button-3')));
     await tester.tap(find.byKey(const ValueKey('point-button-3')));
     await tester.pumpAndSettle();
 
@@ -318,8 +313,9 @@ void main() {
     );
   });
 
-  testWidgets('learning menu shows Bab 1-4 without Bab 5', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(800, 1200));
+  testWidgets('learning menu shows Bab 1-4 boards without Bab 5',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(960, 540));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     SharedPreferences.setMockInitialValues({
       StorageService.keyKoin: 75,
@@ -327,7 +323,7 @@ void main() {
     });
 
     await tester.pumpWidget(const MaterialApp(home: BelajarScreen()));
-    await tester.pumpAndSettle();
+    await _pumpBelajarFrames(tester);
 
     final background = tester.widget<Image>(
       find.byKey(const ValueKey('belajar-background')),
@@ -336,6 +332,7 @@ void main() {
       (background.image as AssetImage).assetName,
       'assets/images/bg_menu_utama.png',
     );
+    expect(find.text('Pilih Bab Pelajaran'), findsOneWidget);
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('belajar-coins')),
@@ -350,12 +347,234 @@ void main() {
       ),
       findsOneWidget,
     );
+
+    const firstBoardKey = ValueKey('bab-board-1');
+    final firstBoard = find.byKey(firstBoardKey);
+    final screenHeight = MediaQuery.sizeOf(tester.element(firstBoard)).height;
+    expect(
+        tester.getSize(firstBoard).height, closeTo(screenHeight * 0.48, 0.1));
+    final boardStack = tester.widget<Stack>(
+      find.descendant(of: firstBoard, matching: find.byType(Stack)).first,
+    );
+    expect(boardStack.alignment, Alignment.center);
+    final boardImage = tester.widget<Image>(
+      find.byKey(const ValueKey('bab-board-image-1')),
+    );
+    expect(
+      (boardImage.image as AssetImage).assetName,
+      'assets/images/icon_bab.png',
+    );
+    expect(boardImage.fit, BoxFit.contain);
+    expect(boardImage.errorBuilder, isNull);
+    final headingFinder = find.descendant(
+      of: firstBoard,
+      matching: find.text('BAB 1'),
+    );
+    final subtitleFinder = find.descendant(
+      of: firstBoard,
+      matching: find.text('pondasi islam'),
+    );
+    final heading = tester.widget<Text>(headingFinder);
+    final subtitle = tester.widget<Text>(subtitleFinder);
+    expect(heading.textAlign, TextAlign.center);
+    expect(heading.maxLines, 1);
+    expect(heading.style?.fontWeight, FontWeight.w800);
+    expect(heading.style?.color, const Color(0xFF5A3B1B));
+    expect(heading.style?.fontSize, greaterThan(20));
+    expect(subtitle.textAlign, TextAlign.center);
+    expect(subtitle.maxLines, 2);
+    expect(subtitle.style?.fontWeight, FontWeight.w700);
+    expect(subtitle.style?.color, const Color(0xFF5A3B1B));
+    expect(
+      subtitle.style?.fontSize,
+      lessThan(heading.style!.fontSize!),
+    );
+    expect(
+      tester.getCenter(headingFinder).dx,
+      closeTo(tester.getCenter(firstBoard).dx, 0.1),
+    );
+    expect(
+      tester.getCenter(subtitleFinder).dx,
+      closeTo(tester.getCenter(firstBoard).dx, 0.1),
+    );
+    final titleColumn = find.descendant(
+      of: firstBoard,
+      matching: find.byType(Column),
+    ).first;
+    final firstImage = find.byKey(const ValueKey('bab-board-image-1'));
+    final imageRect = tester.getRect(firstImage);
+    expect(
+      tester.getCenter(titleColumn).dy,
+      closeTo(imageRect.top + imageRect.height * 0.38, 0.1),
+    );
+
+    final startY = tester.getCenter(firstImage).dy;
+    await tester.pump(const Duration(milliseconds: 450));
+    expect(
+      tester.getCenter(firstImage).dy,
+      isNot(closeTo(startY, 0.01)),
+    );
+
+    final gesture = await tester.startGesture(tester.getCenter(firstBoard));
+    await tester.pump(const Duration(milliseconds: 160));
+    final scaleFinder = find.descendant(
+      of: firstBoard,
+      matching: find.byType(AnimatedScale),
+    );
+    expect(tester.widget<AnimatedScale>(scaleFinder).scale, 0.95);
+    await gesture.cancel();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(tester.widget<AnimatedScale>(scaleFinder).scale, 1);
+
     for (var bab = 1; bab <= 4; bab++) {
-      expect(find.textContaining('Bab $bab:'), findsOneWidget);
+      final board = find.byKey(ValueKey('bab-board-$bab'));
+      await tester.scrollUntilVisible(
+        board,
+        300,
+        scrollable: _materialScrollable(),
+      );
+      expect(find.textContaining('BAB $bab'), findsOneWidget);
+      final floatingBuilder = tester.widget<AnimatedBuilder>(
+        find.descendant(
+          of: board,
+          matching: find.byType(AnimatedBuilder),
+        ).first,
+      );
+      expect(
+        (floatingBuilder.animation as AnimationController).isAnimating,
+        isTrue,
+      );
+      final chapterTitle =
+          MateriData.dataBabBelajar[bab - 1]['judul'] as String;
+      final subtitle = chapterTitle
+          .split(RegExp(r':\s*'))
+          .skip(1)
+          .join(' ')
+          .toLowerCase();
+      expect(find.text(subtitle), findsOneWidget);
     }
-    expect(find.textContaining('Bab 5:'), findsNothing);
+    expect(find.byKey(const ValueKey('bab-board-5')), findsNothing);
     expect(find.textContaining('Doa Harian'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('navigates chapter board to material board to explanation',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(960, 540));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MaterialApp(home: BelajarScreen()));
+    await _pumpBelajarFrames(tester);
+
+    await tester.tap(find.byKey(const ValueKey('bab-board-1')));
+    await _pumpBelajarFrames(tester);
+
+    expect(find.byType(SubMateriListScreen), findsOneWidget);
+    expect(find.text('Bab 1: Pondasi Islam'), findsOneWidget);
+    expect(find.byKey(const ValueKey('submateri-list')), findsOneWidget);
+    final materialListFinder = find.byKey(const ValueKey('submateri-list'));
+    final materialList = tester.widget<ListView>(materialListFinder);
+    final listPadding = materialList.padding! as EdgeInsets;
+    expect(listPadding.left, closeTo(listPadding.right, 0.1));
+    final listRect = tester.getRect(materialListFinder);
+    final firstMaterialRect = tester.getRect(
+      find.byKey(const ValueKey('materi-board-0')),
+    );
+    final lastMaterialRect = tester.getRect(
+      find.byKey(const ValueKey('materi-board-2')),
+    );
+    expect(
+      (firstMaterialRect.left + lastMaterialRect.right) / 2,
+      closeTo(listRect.center.dx, 0.1),
+    );
+    expect(firstMaterialRect.left, greaterThanOrEqualTo(listRect.left));
+    expect(lastMaterialRect.right, lessThanOrEqualTo(listRect.right));
+    expect(find.textContaining('(Safinatun Najah)'), findsNothing);
+    final materialBoard = find.byKey(const ValueKey('materi-board-1'));
+    final screenHeight =
+        MediaQuery.sizeOf(tester.element(materialBoard)).height;
+    expect(
+      tester.getSize(materialBoard).height,
+      lessThanOrEqualTo(screenHeight * 0.44 + 0.1),
+    );
+    final materialStack = tester.widget<Stack>(
+      find.descendant(of: materialBoard, matching: find.byType(Stack)).first,
+    );
+    expect(materialStack.alignment, Alignment.center);
+    final materialFloatingBuilder = tester.widget<AnimatedBuilder>(
+      find.descendant(
+        of: materialBoard,
+        matching: find.byType(AnimatedBuilder),
+      ).first,
+    );
+    expect(
+      (materialFloatingBuilder.animation as AnimationController).isAnimating,
+      isTrue,
+    );
+    final materialImage = tester.widget<Image>(
+      find.byKey(const ValueKey('materi-board-image-1')),
+    );
+    expect(
+      (materialImage.image as AssetImage).assetName,
+      'assets/images/icon_materi.png',
+    );
+    expect(materialImage.fit, BoxFit.contain);
+    expect(materialImage.errorBuilder, isNull);
+    final materialTitle = tester.widget<Text>(
+      find.descendant(
+        of: materialBoard,
+        matching: find.text('5 Rukun Islam'),
+      ),
+    );
+    expect(materialTitle.style?.color, const Color(0xFF5A3B1B));
+
+    await tester.tap(materialBoard);
+    await _pumpBelajarFrames(tester);
+
+    expect(find.byType(BelajarDetailScreen), findsOneWidget);
+    expect(find.text('5 Rukun Islam'), findsOneWidget);
+    expect(find.textContaining('(Safinatun Najah)'), findsNothing);
+    expect(find.byKey(const ValueKey('materi-detail-board')), findsOneWidget);
+    expect(find.byKey(const ValueKey('next-material-button')), findsNothing);
+    final board = tester.widget<Container>(
+      find.byKey(const ValueKey('materi-detail-board')),
+    );
+    final decoration = board.decoration! as BoxDecoration;
+    expect(decoration.borderRadius, BorderRadius.circular(28));
+    expect(decoration.color, const Color(0xFFFFFDF2));
+
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await _pumpBelajarFrames(tester);
+    expect(find.byType(SubMateriListScreen), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+    await _pumpBelajarFrames(tester);
+    expect(find.byType(BelajarScreen), findsOneWidget);
+  });
+
+  testWidgets('round Matan speaker reads the selected bacaan', (tester) async {
+    await _pumpDetail(tester, MateriData.dataBabBelajar.first);
+
+    final speaker = find.byKey(const ValueKey('matan-speaker-button'));
+    await _reveal(tester, speaker);
+    final material = tester.widget<Material>(speaker);
+    expect(material.shape, isA<CircleBorder>());
+    expect(material.color, const Color(0xFF149E53));
+    expect(
+      find.descendant(
+        of: speaker,
+        matching: find.byIcon(Icons.volume_up_rounded),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(speaker);
+    await tester.pumpAndSettle();
+
+    final item = _itemsForChapter(1).first;
+    final speakCall = ttsCalls.lastWhere((call) => call.method == 'speak');
+    expect(speakCall.arguments, '${item['teksLatin']}. ${item['arti']}');
   });
 
   testWidgets('shows Matan and concise points, then opens Zaid and TTS',
@@ -370,6 +589,7 @@ void main() {
     expect(find.byKey(const ValueKey('character-panel')), findsNothing);
     expect(find.text('Syahadat adalah kalimat persaksian'), findsNothing);
 
+    await _reveal(tester, find.byKey(const ValueKey('point-button-0')));
     await tester.tap(find.byKey(const ValueKey('point-button-0')));
     await tester.pumpAndSettle();
 
@@ -396,7 +616,9 @@ void main() {
       const AssetImage('assets/images/avatar_zaid.png'),
     );
 
-    await tester.tap(find.byKey(const ValueKey('tts-speaker-button')));
+    final ttsButton = find.byKey(const ValueKey('tts-speaker-button'));
+    await _reveal(tester, ttsButton);
+    await tester.tap(ttsButton);
     await tester.pumpAndSettle();
 
     final speakCall = ttsCalls.lastWhere((call) => call.method == 'speak');
@@ -405,7 +627,9 @@ void main() {
       'Syahadat adalah kalimat persaksian dan janji setia seorang muslim, sekaligus pintu gerbang pertama masuk ke dalam agama Islam.',
     );
 
-    await tester.tap(find.byKey(const ValueKey('close-character-panel')));
+    final closeButton = find.byKey(const ValueKey('close-character-panel'));
+    await _reveal(tester, closeButton);
+    await tester.tap(closeButton);
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('character-panel')), findsNothing);
   });
@@ -416,6 +640,7 @@ void main() {
     });
 
     await _pumpDetail(tester, MateriData.dataBabBelajar.first);
+    await _reveal(tester, find.byKey(const ValueKey('point-button-0')));
     await tester.tap(find.byKey(const ValueKey('point-button-0')));
     await tester.pumpAndSettle();
 
@@ -428,18 +653,15 @@ void main() {
     );
   });
 
-  testWidgets('navigates all three Bab 1 cards', (tester) async {
-    await _pumpDetail(tester, MateriData.dataBabBelajar.first);
+  testWidgets('opens the selected Bab 1 material directly', (tester) async {
+    await _pumpDetail(tester, MateriData.dataBabBelajar.first, itemIndex: 1);
 
-    await tester.tap(find.byKey(const ValueKey('next-material-button')));
-    await tester.pumpAndSettle();
-    expect(find.text('5 Rukun Islam (Safinatun Najah)'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('point-button-4')),
-      200,
-      scrollable: _materialScrollable(),
-    );
+    expect(find.text('5 Rukun Islam'), findsOneWidget);
+    expect(find.text('Dua Kalimat Syahadat & Maknanya'), findsNothing);
+    expect(find.byKey(const ValueKey('point-button-4')), findsOneWidget);
+    expect(find.byKey(const ValueKey('next-material-button')), findsNothing);
 
+    await _reveal(tester, find.byKey(const ValueKey('point-button-4')));
     await tester.tap(find.byKey(const ValueKey('point-button-4')));
     await tester.pumpAndSettle();
     expect(
@@ -449,12 +671,6 @@ void main() {
       ),
       findsOneWidget,
     );
-
-    await tester.tap(find.byKey(const ValueKey('next-material-button')));
-    await tester.pumpAndSettle();
-    expect(find.text('6 Rukun Iman (Safinatun Najah)'), findsOneWidget);
-    expect(find.byKey(const ValueKey('point-button-5')), findsOneWidget);
-    expect(find.text('Selesai'), findsOneWidget);
   });
 
   testWidgets('completing Bab 1 refills two lives and celebrates',
@@ -465,15 +681,15 @@ void main() {
     });
     final storage = StorageService();
     await storage.init();
-    await _pumpDetail(tester, MateriData.dataBabBelajar.first);
+    await _pumpDetail(tester, MateriData.dataBabBelajar.first, itemIndex: 2);
 
-    await tester.tap(find.byKey(const ValueKey('next-material-button')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('next-material-button')));
-    await tester.pumpAndSettle();
-    expect(find.text('Selesai'), findsOneWidget);
+    final completeButton = find.byKey(
+      const ValueKey('complete-material-button'),
+    );
+    await _reveal(tester, completeButton);
+    expect(find.text('Selesai Belajar (+2 ❤️ Nyawa)'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('next-material-button')));
+    await tester.tap(completeButton);
     await tester.pumpAndSettle();
 
     expect(
@@ -488,16 +704,8 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(320, 640));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await _pumpDetail(tester, MateriData.dataBabBelajar.first);
-    await tester.tap(find.byKey(const ValueKey('next-material-button')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('next-material-button')));
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('point-button-5')),
-      200,
-      scrollable: _materialScrollable(),
-    );
+    await _pumpDetail(tester, MateriData.dataBabBelajar.first, itemIndex: 2);
+    await _reveal(tester, find.byKey(const ValueKey('point-button-5')));
     await tester.tap(find.byKey(const ValueKey('point-button-5')));
     await tester.pumpAndSettle();
 
@@ -514,17 +722,9 @@ void main() {
 
   testWidgets('Bab 2 exposes all six wudhu points to the character panel',
       (tester) async {
-    await _pumpDetail(tester, MateriData.dataBabBelajar[1]);
-    await tester.tap(find.byKey(const ValueKey('next-material-button')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('next-material-button')));
-    await tester.pumpAndSettle();
+    await _pumpDetail(tester, MateriData.dataBabBelajar[1], itemIndex: 2);
 
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('point-button-5')),
-      200,
-      scrollable: _materialScrollable(),
-    );
+    await _reveal(tester, find.byKey(const ValueKey('point-button-5')));
     await tester.tap(find.byKey(const ValueKey('point-button-5')));
     await tester.pumpAndSettle();
 
@@ -538,15 +738,9 @@ void main() {
   });
 
   testWidgets('Bab 3 exposes all five rukun shalat points', (tester) async {
-    await _pumpDetail(tester, MateriData.dataBabBelajar[2]);
-    await tester.tap(find.byKey(const ValueKey('next-material-button')));
-    await tester.pumpAndSettle();
+    await _pumpDetail(tester, MateriData.dataBabBelajar[2], itemIndex: 1);
 
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('point-button-4')),
-      200,
-      scrollable: _materialScrollable(),
-    );
+    await _reveal(tester, find.byKey(const ValueKey('point-button-4')));
     await tester.tap(find.byKey(const ValueKey('point-button-4')));
     await tester.pumpAndSettle();
 
@@ -565,11 +759,7 @@ void main() {
       await _pumpDetail(tester, bab);
 
       expect(find.text('MATAN'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('point-button-0')),
-        200,
-        scrollable: _materialScrollable(),
-      );
+      await _reveal(tester, find.byKey(const ValueKey('point-button-0')));
       await tester.tap(find.byKey(const ValueKey('point-button-0')));
       await tester.pumpAndSettle();
 
@@ -596,15 +786,27 @@ Finder _materialScrollable() {
   return find.byType(Scrollable).last;
 }
 
+Future<void> _pumpBelajarFrames(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+}
+
+Future<void> _reveal(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.pumpAndSettle();
+}
+
 Future<void> _pumpDetail(
   WidgetTester tester,
-  Map<String, dynamic> bab,
-) async {
+  Map<String, dynamic> bab, {
+  int itemIndex = 0,
+}) async {
   await tester.pumpWidget(
     MaterialApp(
       home: BelajarDetailScreen(
         babIndex: (bab['bab'] as int) - 1,
         bab: bab,
+        itemIndex: itemIndex,
       ),
     ),
   );

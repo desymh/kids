@@ -23,6 +23,7 @@ class _SplashScreenState extends State<SplashScreen>
   late final AnimationController _floatController;
   late final Animation<double> _scaleAnimation;
   late final Animation<double> _fadeAnimation;
+  late final Animation<double> _textRevealAnimation;
   late final Animation<double> _floatAnimation;
   Timer? _navigationTimer;
   bool _navigating = false;
@@ -51,6 +52,10 @@ class _SplashScreenState extends State<SplashScreen>
         parent: _entryController,
         curve: const Interval(0.0, 0.35, curve: Curves.easeOut),
       ),
+    );
+    _textRevealAnimation = CurvedAnimation(
+      parent: _entryController,
+      curve: const Interval(0.38, 0.92, curve: Curves.easeInOutCubic),
     );
     _floatAnimation = Tween<double>(begin: -5.0, end: 5.0).animate(
       CurvedAnimation(parent: _floatController, curve: Curves.easeInOut),
@@ -85,6 +90,9 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final logoWidth = MediaQuery.sizeOf(context).width * 0.55;
+    final logoHeight = logoWidth * 420 / 594;
+
     return Scaffold(
       backgroundColor: _backgroundColor,
       body: Center(
@@ -98,10 +106,39 @@ class _SplashScreenState extends State<SplashScreen>
                 offset: Offset(0, _floatAnimation.value),
                 child: child,
               ),
-              child: Image.asset(
-                'assets/images/logo_qalbukids.png',
-                width: MediaQuery.of(context).size.width * 0.55,
-                fit: BoxFit.contain,
+              child: SizedBox(
+                width: logoWidth,
+                height: logoHeight,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Image.asset(
+                        'assets/images/logo_qalbukids.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    Positioned(
+                      top: logoHeight * 0.60,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: AnimatedBuilder(
+                        key: const ValueKey('splash-text-reveal'),
+                        animation: _textRevealAnimation,
+                        builder: (context, child) => ClipRect(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: FractionallySizedBox(
+                              widthFactor: 1 - _textRevealAnimation.value,
+                              child: child,
+                            ),
+                          ),
+                        ),
+                        child: const ColoredBox(color: _backgroundColor),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
