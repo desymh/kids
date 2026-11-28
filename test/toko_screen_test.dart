@@ -115,7 +115,7 @@ void main() {
     );
   });
 
-  testWidgets('shop uses compact horizontal packages without mascot',
+  testWidgets('shop uses compact left-locked packages without mascot',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(960, 540));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -140,17 +140,49 @@ void main() {
       tester.widget<ListView>(packageList).scrollDirection,
       Axis.horizontal,
     );
-    final firstPackageSize =
-        tester.getSize(find.byKey(const ValueKey('shop-package-1')));
-    expect(firstPackageSize.width, lessThanOrEqualTo(210));
-    expect(firstPackageSize.height, lessThanOrEqualTo(300));
+    final backButton = find.byKey(const ValueKey('shop-back'));
+    expect(backButton, findsOneWidget);
+    expect(
+      find.ancestor(
+        of: backButton,
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is Container &&
+              widget.decoration is BoxDecoration &&
+              (widget.decoration! as BoxDecoration).shape == BoxShape.circle,
+        ),
+      ),
+      findsNothing,
+    );
+    final firstPackage = find.byKey(const ValueKey('shop-package-1'));
+    final packageListRect = tester.getRect(packageList);
+    final firstPackageRect = tester.getRect(firstPackage);
+    final titleRect = tester.getRect(find.text('Toko Nyawa'));
+    expect(
+      firstPackageRect.left,
+      closeTo(packageListRect.left + 20, 0.01),
+    );
+    expect(firstPackageRect.top, greaterThan(titleRect.bottom));
+    expect(
+      firstPackageRect.center.dy,
+      closeTo(packageListRect.center.dy, 0.01),
+    );
+    final firstPackageSize = tester.getSize(firstPackage);
+    expect(firstPackageSize.width, lessThanOrEqualTo(190));
+    expect(firstPackageSize.height, lessThanOrEqualTo(270));
 
     final scrollable = find.descendant(
       of: packageList,
       matching: find.byType(Scrollable),
     );
     final scrollPosition = tester.state<ScrollableState>(scrollable).position;
+    expect(scrollPosition.minScrollExtent, 0);
+    expect(scrollPosition.pixels, 0);
     expect(scrollPosition.maxScrollExtent, greaterThan(0));
+    await tester.drag(packageList, const Offset(300, 0));
+    await pumpAnimatedFrames(tester);
+    expect(scrollPosition.pixels, 0);
+
     await tester.drag(packageList, const Offset(-700, 0));
     await pumpAnimatedFrames(tester);
 

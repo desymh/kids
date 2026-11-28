@@ -92,38 +92,15 @@ class _PetaScreenState extends State<PetaScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFE6F7FA),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        toolbarHeight: 48,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.teal[800]),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Peta Petualangan',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            color: Colors.teal[900],
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: WalletStatsRow(
-              coinsKey: const ValueKey('peta-coins'),
-              livesKey: const ValueKey('peta-lives'),
-              coins: _koin,
-              lives: _nyawa,
-            ),
-          ),
-        ],
-      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final viewport = Size(constraints.maxWidth, constraints.maxHeight);
+          const toolbarHeight = 48.0;
+          final headerHeight =
+              MediaQuery.of(context).padding.top + toolbarHeight;
+          final viewport = Size(
+            constraints.maxWidth,
+            math.max(0.0, constraints.maxHeight - headerHeight),
+          );
           final layout = _MapLayout.fromViewport(viewport);
           _viewportWidth = viewport.width;
           final activeIndex = _pulau.indexWhere(
@@ -143,6 +120,7 @@ class _PetaScreenState extends State<PetaScreen> {
             fit: StackFit.expand,
             children: [
               Container(
+                key: const ValueKey('peta-fullscreen-background'),
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
@@ -157,38 +135,86 @@ class _PetaScreenState extends State<PetaScreen> {
                 ),
               ),
               Positioned.fill(child: CustomPaint(painter: _WavePainter())),
-              SingleChildScrollView(
-                key: const ValueKey('peta-horizontal-scroll'),
-                controller: _scroll,
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: layout.contentWidth,
-                  height: viewport.height,
-                  child: Stack(
-                    key: const ValueKey('peta-landscape-map'),
-                    children: [
-                      Positioned.fill(
-                        child: CustomPaint(
-                          key: const ValueKey('peta-bubble-path'),
-                          painter: _BubblePathPainter(
-                            layout.centers,
-                            layout.islandSizes.first,
+              Positioned(
+                top: headerHeight,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: SingleChildScrollView(
+                  key: const ValueKey('peta-horizontal-scroll'),
+                  controller: _scroll,
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: layout.contentWidth,
+                    height: viewport.height,
+                    child: Stack(
+                      key: const ValueKey('peta-landscape-map'),
+                      children: [
+                        Positioned.fill(
+                          child: CustomPaint(
+                            key: const ValueKey('peta-bubble-path'),
+                            painter: _BubblePathPainter(
+                              layout.centers,
+                              layout.islandSizes.first,
+                            ),
                           ),
                         ),
+                        for (var index = 0; index < _pulau.length; index++)
+                          _buildIsland(
+                            island: _pulau[index],
+                            center: layout.centers[index],
+                            islandSize: layout.islandSizes[index],
+                          ),
+                        if (activeIndex >= 0)
+                          _buildAdventurePrompt(
+                            island: _pulau[activeIndex],
+                            center: layout.centers[activeIndex],
+                            islandSize: layout.islandSizes[activeIndex],
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  bottom: false,
+                  child: SizedBox(
+                    key: const ValueKey('peta-header'),
+                    height: toolbarHeight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            key: const ValueKey('peta-back'),
+                            icon:
+                                Icon(Icons.arrow_back, color: Colors.teal[800]),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                          Expanded(
+                            child: Text(
+                              'Peta Petualangan',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.teal[900],
+                              ),
+                            ),
+                          ),
+                          WalletStatsRow(
+                            coinsKey: const ValueKey('peta-coins'),
+                            livesKey: const ValueKey('peta-lives'),
+                            coins: _koin,
+                            lives: _nyawa,
+                          ),
+                        ],
                       ),
-                      for (var index = 0; index < _pulau.length; index++)
-                        _buildIsland(
-                          island: _pulau[index],
-                          center: layout.centers[index],
-                          islandSize: layout.islandSizes[index],
-                        ),
-                      if (activeIndex >= 0)
-                        _buildAdventurePrompt(
-                          island: _pulau[activeIndex],
-                          center: layout.centers[activeIndex],
-                          islandSize: layout.islandSizes[activeIndex],
-                        ),
-                    ],
+                    ),
                   ),
                 ),
               ),

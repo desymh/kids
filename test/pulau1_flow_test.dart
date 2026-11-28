@@ -487,8 +487,14 @@ void main() {
         tester.getSize(find.byKey(const ValueKey('badge-card-1')));
     expect(firstBadgeSize.width, lessThanOrEqualTo(190));
     expect(firstBadgeSize.height, lessThanOrEqualTo(220));
-    final firstBadgeCenter =
-        tester.getCenter(find.byKey(const ValueKey('badge-card-1')));
+    final firstBadge = find.byKey(const ValueKey('badge-card-1'));
+    final medalRect =
+        tester.getRect(find.byKey(const ValueKey('badge-medal-1')));
+    final badgeTitleRect = tester.getRect(
+      find.descendant(of: firstBadge, matching: find.byType(Text)).first,
+    );
+    expect(medalRect.bottom, lessThanOrEqualTo(badgeTitleRect.top));
+    final firstBadgeCenter = tester.getCenter(firstBadge);
     final secondBadgeCenter =
         tester.getCenter(find.byKey(const ValueKey('badge-card-2')));
     final thirdBadgeCenter =
@@ -497,6 +503,8 @@ void main() {
     expect(secondBadgeCenter.dy, closeTo(thirdBadgeCenter.dy, 0.001));
     expect(firstBadgeCenter.dx, lessThan(secondBadgeCenter.dx));
     expect(secondBadgeCenter.dx, lessThan(thirdBadgeCenter.dx));
+    final badgeListRect = tester.getRect(badgeList);
+    expect(firstBadgeCenter.dy, lessThan(badgeListRect.center.dy - 6));
     expect(find.text('2/5'), findsOneWidget);
     expect(find.byKey(const ValueKey('badge-card-5')), findsNothing);
     expect(find.text('❤️'), findsOneWidget);

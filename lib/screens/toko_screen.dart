@@ -160,10 +160,12 @@ class _TokoScreenState extends State<TokoScreen> {
                 children: [
                   Row(
                     children: [
-                      _CircleIconButton(
-                        icon: Icons.arrow_back_rounded,
+                      IconButton(
+                        key: const ValueKey('shop-back'),
+                        icon: Icon(Icons.arrow_back_rounded),
                         tooltip: 'Kembali',
-                        onTap: () => Navigator.pop(context),
+                        color: const Color(0xFF355C55),
+                        onPressed: () => Navigator.pop(context),
                       ),
                       const SizedBox(width: 12),
                       const Expanded(
@@ -190,8 +192,8 @@ class _TokoScreenState extends State<TokoScreen> {
                       builder: (context, constraints) {
                         final compact = constraints.maxHeight < 360;
                         final cardWidth =
-                            constraints.maxWidth < 560 ? 176.0 : 208.0;
-                        final maxCardHeight = compact ? 250.0 : 300.0;
+                            constraints.maxWidth < 560 ? 160.0 : 180.0;
+                        final maxCardHeight = compact ? 230.0 : 270.0;
                         final cardHeight =
                             (constraints.maxHeight - (compact ? 8 : 64))
                                 .clamp(160.0, maxCardHeight)
@@ -308,7 +310,7 @@ class _PackageCardState extends State<_PackageCard> {
         child: Opacity(
           opacity: widget.enabled ? 1 : 0.65,
           child: Container(
-            padding: EdgeInsets.all(widget.compact ? 10 : 16),
+            padding: EdgeInsets.all(widget.compact ? 10 : 14),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: package.gradient,
@@ -349,11 +351,11 @@ class _PackageCardState extends State<_PackageCard> {
                       ),
                     ),
                   ),
-                  SizedBox(height: widget.compact ? 4 : 10),
+                  SizedBox(height: widget.compact ? 4 : 8),
                 ],
                 Container(
-                  width: widget.compact ? 46 : 70,
-                  height: widget.compact ? 46 : 70,
+                  width: widget.compact ? 46 : 60,
+                  height: widget.compact ? 46 : 60,
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
@@ -361,25 +363,25 @@ class _PackageCardState extends State<_PackageCard> {
                   child: Icon(
                     Icons.favorite_rounded,
                     color: Colors.white,
-                    size: widget.compact ? 28 : 44,
+                    size: widget.compact ? 28 : 38,
                   ),
                 ),
-                SizedBox(height: widget.compact ? 6 : 12),
+                SizedBox(height: widget.compact ? 6 : 10),
                 Text(
                   '+${package.lives} ❤️ Nyawa',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: widget.compact ? 12 : 17,
+                    fontSize: widget.compact ? 12 : 16,
                     fontWeight: FontWeight.w900,
                     color: Colors.white,
                   ),
                 ),
-                SizedBox(height: widget.compact ? 4 : 8),
+                SizedBox(height: widget.compact ? 4 : 6),
                 Text(
                   '${package.price} 🪙 Koin',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: widget.compact ? 10 : 14,
+                    fontSize: widget.compact ? 10 : 13,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
                   ),
@@ -393,13 +395,13 @@ class _PackageCardState extends State<_PackageCard> {
                     borderRadius: BorderRadius.circular(14),
                     child: Padding(
                       padding: EdgeInsets.symmetric(
-                        horizontal: widget.compact ? 8 : 14,
-                        vertical: widget.compact ? 7 : 10,
+                        horizontal: widget.compact ? 8 : 12,
+                        vertical: widget.compact ? 7 : 8,
                       ),
                       child: Text(
                         'Tukar',
                         style: TextStyle(
-                          fontSize: widget.compact ? 10 : 12,
+                          fontSize: widget.compact ? 10 : 11,
                           fontWeight: FontWeight.w900,
                           color: package.shadowColor,
                         ),
@@ -496,40 +498,6 @@ class _WalletCapsule extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _CircleIconButton extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-
-  const _CircleIconButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF2D5F52).withValues(alpha: 0.16),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: IconButton(
-        icon: Icon(icon, color: const Color(0xFF355C55)),
-        tooltip: tooltip,
-        onPressed: onTap,
       ),
     );
   }

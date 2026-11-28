@@ -2272,6 +2272,19 @@ void main() {
     final map = find.byKey(const ValueKey('peta-landscape-map'));
     final mapRect = tester.getRect(map);
     expect(mapRect.width, greaterThan(mapRect.height));
+    final screenRect = tester.getRect(find.byType(Scaffold));
+    final backgroundRect = tester.getRect(
+      find.byKey(const ValueKey('peta-fullscreen-background')),
+    );
+    expect(backgroundRect, screenRect);
+    expect(find.byType(AppBar), findsNothing);
+    final header = find.byKey(const ValueKey('peta-header'));
+    expect(header, findsOneWidget);
+    expect(tester.getRect(header).bottom, lessThanOrEqualTo(mapRect.top));
+    expect(find.text('Peta Petualangan'), findsOneWidget);
+    expect(find.byKey(const ValueKey('peta-back')), findsOneWidget);
+    expect(find.byKey(const ValueKey('peta-coins')), findsOneWidget);
+    expect(find.byKey(const ValueKey('peta-lives')), findsOneWidget);
     expect(find.byKey(const ValueKey('peta-bubble-path')), findsOneWidget);
     final mapScroll = find.byType(SingleChildScrollView);
     expect(mapScroll, findsOneWidget);

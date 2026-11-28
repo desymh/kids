@@ -165,7 +165,7 @@ class LencanaScreenState extends State<LencanaScreen> {
           key: const ValueKey('lencana-list'),
           scrollDirection: Axis.horizontal,
           physics: const ClampingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           itemCount: badges.length,
           separatorBuilder: (_, __) => const SizedBox(width: 14),
           itemBuilder: (_, index) {
@@ -332,6 +332,7 @@ class _BadgeCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 SizedBox(
+                  key: ValueKey('badge-medal-$pulauId'),
                   width: medalSize,
                   height: medalSize,
                   child: CustomPaint(
@@ -411,26 +412,27 @@ class _MedalPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height * 0.45);
+    final scale = size.shortestSide / 112.0;
+    final center = Offset(size.width / 2, size.height * 0.38);
     final medalRadius = size.width * 0.35;
 
     final ribbonPaint = Paint()
       ..color = unlocked ? ribbonColor : Colors.grey[500]!;
     final ribbonPath = Path()
-      ..moveTo(center.dx - 20, center.dy + 30)
-      ..lineTo(center.dx - 32, center.dy + 70)
-      ..lineTo(center.dx - 14, center.dy + 62)
-      ..lineTo(center.dx - 4, center.dy + 72)
-      ..lineTo(center.dx, center.dy + 36)
+      ..moveTo(center.dx - 18 * scale, center.dy + 26 * scale)
+      ..lineTo(center.dx - 30 * scale, center.dy + 62 * scale)
+      ..lineTo(center.dx - 14 * scale, center.dy + 54 * scale)
+      ..lineTo(center.dx - 4 * scale, center.dy + 64 * scale)
+      ..lineTo(center.dx, center.dy + 30 * scale)
       ..close();
     canvas.drawPath(ribbonPath, ribbonPaint);
     canvas.drawPath(
         Path()
-          ..moveTo(center.dx + 20, center.dy + 30)
-          ..lineTo(center.dx + 32, center.dy + 70)
-          ..lineTo(center.dx + 14, center.dy + 62)
-          ..lineTo(center.dx + 4, center.dy + 72)
-          ..lineTo(center.dx, center.dy + 36)
+          ..moveTo(center.dx + 18 * scale, center.dy + 26 * scale)
+          ..lineTo(center.dx + 30 * scale, center.dy + 62 * scale)
+          ..lineTo(center.dx + 14 * scale, center.dy + 54 * scale)
+          ..lineTo(center.dx + 4 * scale, center.dy + 64 * scale)
+          ..lineTo(center.dx, center.dy + 30 * scale)
           ..close(),
         ribbonPaint);
 
@@ -448,30 +450,29 @@ class _MedalPainter extends CustomPainter {
     } else {
       final lockPaint = Paint()..color = Colors.grey[600]!;
       final lockRect = Rect.fromCenter(
-          center: Offset(center.dx, center.dy + 8), width: 24, height: 18);
+          center: Offset(center.dx, center.dy + 8 * scale),
+          width: 24 * scale,
+          height: 18 * scale);
       canvas.drawRRect(
-          RRect.fromRectAndRadius(lockRect, Radius.circular(4)), lockPaint);
+          RRect.fromRectAndRadius(lockRect, Radius.circular(4 * scale)),
+          lockPaint);
       final arcPaint = Paint()
         ..color = Colors.grey[600]!
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
+        ..strokeWidth = 3 * scale
         ..strokeCap = StrokeCap.round;
-      canvas.drawArc(
-          Rect.fromCircle(center: Offset(center.dx, center.dy), radius: 12),
-          -pi,
-          pi,
-          false,
-          arcPaint);
-      canvas.drawCircle(center, 3, Paint()..color = Colors.grey[300]!);
+      canvas.drawArc(Rect.fromCircle(center: center, radius: 12 * scale), -pi,
+          pi, false, arcPaint);
+      canvas.drawCircle(center, 3 * scale, Paint()..color = Colors.grey[300]!);
     }
 
     if (unlocked) {
       canvas.drawCircle(
           center,
-          medalRadius + 4,
+          medalRadius + 4 * scale,
           Paint()
             ..color = Colors.black12
-            ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8));
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8 * scale));
     }
   }
 
