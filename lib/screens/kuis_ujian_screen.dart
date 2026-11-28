@@ -256,8 +256,9 @@ class _KuisUjianScreenState extends State<KuisUjianScreen> {
 
   Future<void> _showBadgeCelebrationDialog() async {
     final badgeName = BankSoal.badgeName(widget.pulauId).replaceAll('\n', ' ');
-    final description = widget.pulauId < StorageService.totalIslands
-        ? 'Hebat! Kamu telah menamatkan Pulau ${widget.pulauId} dan membuka Pulau ${widget.pulauId + 1}!'
+    final nextIslandId = ProgressionFSM.nextActiveIslandId(widget.pulauId);
+    final description = nextIslandId != null
+        ? 'Hebat! Kamu telah menamatkan Pulau ${widget.pulauId} dan membuka Pulau $nextIslandId!'
         : 'Hebat! Kamu telah menamatkan Pulau ${widget.pulauId} dan menyelesaikan seluruh petualangan!';
 
     await showDialog<void>(
@@ -403,9 +404,12 @@ class _KuisUjianScreenState extends State<KuisUjianScreen> {
       messages.add('Pulau ${widget.pulauId} telah selesai.');
     }
     if (progression.nextIslandUnlocked) {
-      messages.add(
-        'Pulau ${widget.pulauId + 1} (${BankSoal.islandName(widget.pulauId + 1)}) telah terbuka.',
-      );
+      final nextIslandId = ProgressionFSM.nextActiveIslandId(widget.pulauId);
+      if (nextIslandId != null) {
+        messages.add(
+          'Pulau $nextIslandId (${BankSoal.islandName(nextIslandId)}) telah terbuka.',
+        );
+      }
     }
     if (progression.badgeUnlocked) {
       messages.add(

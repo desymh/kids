@@ -55,8 +55,8 @@ void main() {
           source.first['opsi'], ['Benar', 'Salah', 'Benar', 'Lain', 'Lain 2']);
     });
 
-    test('all six islands provide valid shuffled question pools', () {
-      for (var pulau = 1; pulau <= StorageService.totalIslands; pulau++) {
+    test('all five active islands provide valid shuffled question pools', () {
+      for (final pulau in StorageService.activeIslandIds) {
         final expectedStageCount = pulau == 6 ? 8 : 5;
         for (var tahap = 1; tahap <= StorageService.stagesPerIsland; tahap++) {
           final questions = BankSoal.getSoalTahap(pulau, tahap);
@@ -71,7 +71,7 @@ void main() {
             expect(options.toSet(), hasLength(4));
             expect(question['jawabanBenar'], inInclusiveRange(0, 3));
             if (pulau == 6) {
-              expect(question['pulauId'], inInclusiveRange(1, 5));
+              expect(question['pulauId'], inInclusiveRange(1, 4));
             } else {
               expect(question['pulauId'], pulau);
               expect(question['tahap'], tahap);
@@ -114,15 +114,29 @@ void main() {
       }
     });
 
-    test('badge labels match the six island awards', () {
+    test('Pulau 5 questions are excluded from the testing build', () {
+      expect(BankSoal.getSoalPulau(5), isEmpty);
+      expect(BankSoal.getSoalPetualangan(5), isEmpty);
+      for (var tahap = 1; tahap <= StorageService.stagesPerIsland; tahap++) {
+        expect(BankSoal.getSoalTahap(5, tahap), isEmpty);
+      }
+      for (var tahap = 1; tahap <= StorageService.stagesPerIsland; tahap++) {
+        for (final question in BankSoal.getSoalTahap(6, tahap)) {
+          expect(question['pulauId'], isNot(5));
+        }
+      }
+    });
+
+    test('badge labels match the five active island awards', () {
       expect(
-        BankSoal.badgeNames.map((name) => name.replaceAll('\n', ' ')),
+        StorageService.activeIslandIds
+            .map((pulauId) => BankSoal.badgeName(pulauId).replaceAll('\n', ' '))
+            .toList(),
         [
           'Duta Pondasi Islam',
           'Ahli Thaharah & Bersuci',
           'Santri Taat Shalat',
           'Pejuang Puasa Ramadhan',
-          'Anak Shalih & Beradab',
           'Santri Cilik Teladan',
         ],
       );
@@ -130,6 +144,14 @@ void main() {
   });
 
   group('ProgressionFSM', () {
+    test('display numbering closes the gap left by hidden Pulau 5', () {
+      expect(ProgressionFSM.activeIslandIds, [1, 2, 3, 4, 6]);
+      expect(ProgressionFSM.displayIslandNumber(1), 1);
+      expect(ProgressionFSM.displayIslandNumber(4), 4);
+      expect(ProgressionFSM.displayIslandNumber(6), 5);
+      expect(ProgressionFSM.displayIslandNumber(99), 99);
+    });
+
     test('requires score 60 and at least one life', () {
       final fsm = ProgressionFSM(initialStates: {
         ProgressionFSM.islandKey(1): LevelState.unlocked,
@@ -175,6 +197,39 @@ void main() {
       expect(fsm.getState(ProgressionFSM.stageKey(2, 1)), LevelState.unlocked);
       expect(fsm.getState(ProgressionFSM.badgeKey(1)), LevelState.unlocked);
       expect(fsm.getState(ProgressionFSM.badgeKey(2)), LevelState.locked);
+    });
+
+    test('completing Pulau 4 unlocks Pulau 6 and skips Pulau 5', () {
+      final fsm = ProgressionFSM(initialStates: {
+        ProgressionFSM.islandKey(4): LevelState.unlocked,
+        ProgressionFSM.stageKey(4, 1): LevelState.unlocked,
+      });
+
+      for (var tahap = 1; tahap <= 4; tahap++) {
+        final result = fsm.completeStage(
+          pulauId: 4,
+          tahap: tahap,
+          skor: 75,
+          nyawa: 3,
+        );
+        expect(result.passed, isTrue);
+      }
+
+      expect(fsm.getState(ProgressionFSM.islandKey(4)), LevelState.completed);
+      expect(fsm.getState(ProgressionFSM.islandKey(5)), LevelState.locked);
+      expect(fsm.getState(ProgressionFSM.islandKey(6)), LevelState.unlocked);
+      expect(fsm.getState(ProgressionFSM.stageKey(6, 1)), LevelState.unlocked);
+      expect(
+        fsm
+            .completeStage(
+              pulauId: 5,
+              tahap: 1,
+              skor: 100,
+              nyawa: 3,
+            )
+            .passed,
+        isFalse,
+      );
     });
 
     test('does not complete a locked stage', () {
@@ -329,6 +384,28 @@ void main() {
       expect(await storage.saveBestIslandStars(1, 9), 3);
       expect(await storage.getIslandStars(1), 3);
       expect(await storage.getTotalBintang(), 3);
+    });
+
+    test('adventure completion skips Pulau 5 when unlocking the final island',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final storage = StorageService();
+      await storage.init();
+
+      await storage.saveAdventureResult(
+        pulauId: 4,
+        skor: 67,
+        jumlahBenar: 6,
+        bintang: 2,
+        nyawa: 3,
+      );
+
+      final states = await storage.getFsmStates();
+      expect(states[ProgressionFSM.islandKey(4)], LevelState.completed);
+      expect(states[ProgressionFSM.islandKey(5)], LevelState.locked);
+      expect(states[ProgressionFSM.islandKey(6)], LevelState.unlocked);
+      expect(states[ProgressionFSM.stageKey(6, 1)], LevelState.unlocked);
+      expect(await storage.saveBestIslandStars(5, 3), 0);
     });
 
     test('synchronizes legacy unlock keys when FSM states are saved', () async {

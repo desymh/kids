@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 
 import '../core/fisher_yates_shuffle.dart';
 import '../core/fsm/adventure_fsm.dart';
+import '../core/fsm_controller.dart';
 import '../core/storage_service.dart';
 import '../data/bank_soal.dart';
 import '../game/qalbukids_adventure_game.dart';
@@ -104,6 +105,8 @@ class _AdventureScreenState extends State<AdventureScreen> {
   bool _timeoutDialogOpen = false;
   late int _remainingSeconds;
   late Timer _countdownTimer;
+
+  int get _displayPulauId => ProgressionFSM.displayIslandNumber(widget.pulauId);
 
   @override
   void initState() {
@@ -459,9 +462,9 @@ class _AdventureScreenState extends State<AdventureScreen> {
         key: const ValueKey('adventure-perfect-trophy-dialog'),
         icon: const Icon(Icons.emoji_events_rounded,
             color: Colors.amber, size: 56),
-        title: Text('🏆 Piala Penghargaan Pulau ${widget.pulauId}'),
+        title: Text('🏆 Piala Penghargaan Pulau $_displayPulauId'),
         content: Text(
-          '🏆 LUAR BIASA! 9/9 Benar Sempurna! Piala Penghargaan Pulau ${widget.pulauId} Terbuka!',
+          '🏆 LUAR BIASA! 9/9 Benar Sempurna! Piala Penghargaan Pulau $_displayPulauId Terbuka!',
           textAlign: TextAlign.center,
         ),
         actions: [
@@ -475,13 +478,17 @@ class _AdventureScreenState extends State<AdventureScreen> {
   }
 
   Future<void> _showCompletionAndContinue(AdventureQuizResult result) async {
-    final hasNextIsland = widget.pulauId < StorageService.totalIslands;
+    final nextIslandId = ProgressionFSM.nextActiveIslandId(widget.pulauId);
+    final hasNextIsland = nextIslandId != null;
+    final nextDisplayIslandId = nextIslandId == null
+        ? null
+        : ProgressionFSM.displayIslandNumber(nextIslandId);
     final badgeName = BankSoal.badgeName(widget.pulauId).replaceAll('\n', ' ');
     final achievementMessage = result.perfect
         ? 'Piala Penghargaan $badgeName terbuka.'
-        : '${result.stars} Bintang Pulau ${widget.pulauId} diperoleh.';
+        : '${result.stars} Bintang Pulau $_displayPulauId diperoleh.';
     final nextIslandMessage = hasNextIsland
-        ? 'Gerbang terbuka! Masuk ke Pulau ${widget.pulauId + 1}...'
+        ? 'Gerbang terbuka! Masuk ke Pulau $nextDisplayIslandId...'
         : 'Gerbang terbuka! Seluruh pulau telah diselesaikan.';
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(
@@ -500,7 +507,7 @@ class _AdventureScreenState extends State<AdventureScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Berhasil! Pulau ${widget.pulauId} selesai!',
+                    'Berhasil! Pulau $_displayPulauId selesai!',
                     style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                   Text('$achievementMessage $nextIslandMessage'),
@@ -515,13 +522,13 @@ class _AdventureScreenState extends State<AdventureScreen> {
     await Future<void>.delayed(_islandCompletionDelay);
     if (!mounted) return;
     messenger.hideCurrentSnackBar();
-    if (hasNextIsland) {
+    if (nextIslandId != null) {
       await Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => AdventureScreen(
-            pulauId: widget.pulauId + 1,
-            namaPulau: BankSoal.islandName(widget.pulauId + 1),
+            pulauId: nextIslandId,
+            namaPulau: BankSoal.islandName(nextIslandId),
             obstaclesEnabled: widget.obstaclesEnabled,
           ),
         ),
@@ -1279,7 +1286,7 @@ class _AdventureQuizDialogState extends State<AdventureQuizDialog> {
               borderRadius: BorderRadius.circular(14),
             ),
             child: Text(
-              '🏆 LUAR BIASA! 9/9 Benar Sempurna! Piala Penghargaan Pulau ${widget.pulauId} Terbuka!',
+              '🏆 LUAR BIASA! 9/9 Benar Sempurna! Piala Penghargaan Pulau ${ProgressionFSM.displayIslandNumber(widget.pulauId)} Terbuka!',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.amber[900]!,

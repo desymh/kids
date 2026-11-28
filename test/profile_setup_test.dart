@@ -167,10 +167,48 @@ void main() {
       MainAxisAlignment.spaceEvenly,
     );
     expect(tester.getCenter(menuRow).dx, closeTo(480, 0.001));
+    expect(tester.getSize(menuRow).width, closeTo(864.8, 0.001));
+    final menuGap =
+        tester.getRect(find.byKey(const ValueKey('menu-bermain'))).left -
+            tester.getRect(find.byKey(const ValueKey('menu-belajar'))).right;
+    expect(menuGap, closeTo(33.12, 0.001));
+
+    final background = find.byKey(const ValueKey('home-background'));
     expect(
-      tester.getSize(find.byKey(const ValueKey('menu-belajar'))).height,
-      closeTo(216, 0.001),
+      tester.getRect(background),
+      const Rect.fromLTWH(0, 0, 960, 540),
     );
+
+    const menuIds = ['belajar', 'bermain', 'koleksiku', 'toko'];
+    double floatingOffset(String id) {
+      final icon = find.byKey(ValueKey('menu-$id'));
+      final transform = find
+          .descendant(
+            of: icon,
+            matching: find.byType(Transform),
+          )
+          .first;
+      return tester.widget<Transform>(transform).transform.getTranslation().y;
+    }
+
+    for (final id in menuIds) {
+      final iconSize = tester.getSize(find.byKey(ValueKey('menu-$id')));
+      expect(iconSize.height, closeTo(162, 0.001));
+      expect(iconSize.width, closeTo(174.8, 0.001));
+    }
+
+    final offsetsBefore = {
+      for (final id in menuIds) id: floatingOffset(id),
+    };
+    expect(offsetsBefore.values.toSet().length, greaterThan(1));
+
+    await tester.pump(const Duration(milliseconds: 900));
+    for (final id in menuIds) {
+      expect(
+        floatingOffset(id),
+        isNot(closeTo(offsetsBefore[id]!, 0.01)),
+      );
+    }
     expect(tester.takeException(), isNull);
   });
 

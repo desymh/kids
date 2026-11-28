@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import '../data/bank_soal.dart';
 import '../models/data_models.dart';
+import '../core/fsm_controller.dart';
 import '../core/storage_service.dart';
+import 'toko_screen.dart';
 
 class LencanaScreen extends StatefulWidget {
   final bool isEmbedded;
@@ -15,6 +17,7 @@ class LencanaScreen extends StatefulWidget {
 class LencanaScreenState extends State<LencanaScreen> {
   final StorageService _storage = StorageService();
   List<bool> _badges = List<bool>.filled(StorageService.totalBadges, false);
+  int _koin = StorageService.defaultKoin;
   int _nyawa = StorageService.defaultNyawa;
 
   @override
@@ -25,10 +28,12 @@ class LencanaScreenState extends State<LencanaScreen> {
 
   Future<void> refresh() async {
     final badges = await _storage.getLencana();
+    final koin = await _storage.getKoin();
     final nyawa = await _storage.getNyawa();
     if (!mounted) return;
     setState(() {
       _badges = badges;
+      _koin = koin;
       _nyawa = nyawa;
     });
   }
@@ -69,7 +74,7 @@ class LencanaScreenState extends State<LencanaScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Penghargaan Pulau $pulauId',
+              'Penghargaan Pulau ${ProgressionFSM.displayIslandNumber(pulauId)}',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 18,
@@ -113,20 +118,80 @@ class LencanaScreenState extends State<LencanaScreen> {
       Color(0xFF7B1FA2),
       Color(0xFFF9A825),
     ];
+    final activeIslandIds = StorageService.activeIslandIds;
+    final unlockedBadgeCount =
+        activeIslandIds.where((pulauId) => _badges[pulauId - 1]).length;
     final badges = List.generate(
-      StorageService.totalBadges,
-      (index) => BadgeData(
-        BankSoal.badgeName(index + 1),
-        _badges[index],
-        Colors.amber[700]!,
-        innerColors[index],
-        ribbonColors[index],
-      ),
+      activeIslandIds.length,
+      (index) {
+        final pulauId = activeIslandIds[index];
+        return BadgeData(
+          BankSoal.badgeName(pulauId),
+          _badges[pulauId - 1],
+          Colors.amber[700]!,
+          innerColors[pulauId - 1],
+          ribbonColors[pulauId - 1],
+        );
+      },
     );
 
-    final content = Column(
+    final headerStats = Row(
+      key: const ValueKey('lencana-header-stats'),
+      mainAxisSize: MainAxisSize.min,
       children: [
-        if (widget.isEmbedded)
+        WalletStatsRow(
+          coinsKey: const ValueKey('lencana-coins'),
+          livesKey: const ValueKey('lencana-lives'),
+          coins: _koin,
+          lives: _nyawa,
+        ),
+        const SizedBox(width: 14),
+        _HeaderStat(
+          key: const ValueKey('lencana-count'),
+          icon: Icons.shield,
+          iconColor: Colors.grey[600]!,
+          value: '$unlockedBadgeCount/${StorageService.activeBadgeCount}',
+        ),
+      ],
+    );
+
+    final badgeList = LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxHeight < 300;
+        final cardWidth = constraints.maxWidth < 560 ? 164.0 : 184.0;
+        final cardHeight =
+            (constraints.maxHeight - 16).clamp(172.0, 210.0).toDouble();
+        return ListView.separated(
+          key: const ValueKey('lencana-list'),
+          scrollDirection: Axis.horizontal,
+          physics: const ClampingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          itemCount: badges.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 14),
+          itemBuilder: (_, index) {
+            final pulauId = activeIslandIds[index];
+            return Center(
+              child: SizedBox(
+                width: cardWidth,
+                height: cardHeight,
+                child: _BadgeCard(
+                  data: badges[index],
+                  pulauId: pulauId,
+                  compact: compact,
+                  onTap: badges[index].unlocked
+                      ? () => _showBadgeDetail(pulauId)
+                      : null,
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (widget.isEmbedded) {
+      return Column(
+        children: [
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
             child: Text(
@@ -138,82 +203,21 @@ class LencanaScreenState extends State<LencanaScreen> {
               ),
             ),
           ),
-        Container(
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.teal[100]!),
-            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                      color: Colors.red[50], shape: BoxShape.circle),
-                  child: Icon(Icons.favorite_rounded,
-                      color: Colors.red, size: 20),
-                ),
-                const SizedBox(width: 8),
-                Text('$_nyawa',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 16,
-                        color: Colors.grey[800])),
-              ]),
-              Container(width: 1, height: 24, color: Colors.grey[300]),
-              Row(children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                      color: Colors.grey[100], shape: BoxShape.circle),
-                  child: Icon(Icons.shield, color: Colors.grey[500], size: 20),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                    '${_badges.where((unlocked) => unlocked).length}/${StorageService.totalBadges}',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 16,
-                        color: Colors.grey[800])),
-              ]),
-            ],
-          ),
-        ),
-        Expanded(
-          child: GridView(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 20,
-              mainAxisSpacing: 20,
-              mainAxisExtent: 220,
+          Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: headerStats,
             ),
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            children: badges.asMap().entries.map((entry) {
-              final pulauId = entry.key + 1;
-              return _BadgeCard(
-                data: entry.value,
-                pulauId: pulauId,
-                onTap: entry.value.unlocked
-                    ? () => _showBadgeDetail(pulauId)
-                    : null,
-              );
-            }).toList(),
           ),
-        ),
-      ],
-    );
-
-    if (widget.isEmbedded) {
-      return content;
+          Expanded(child: badgeList),
+        ],
+      );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3FBF7),
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -226,9 +230,66 @@ class LencanaScreenState extends State<LencanaScreen> {
           style:
               TextStyle(fontWeight: FontWeight.w900, color: Colors.teal[900]),
         ),
-        centerTitle: true,
+        centerTitle: false,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: headerStats,
+          ),
+        ],
       ),
-      body: SafeArea(child: content),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            'assets/images/bg_menu_utama.png',
+            key: const ValueKey('lencana-background'),
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Image.asset(
+              'assets/images/bg_menu_utama.jpeg',
+              fit: BoxFit.cover,
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.only(top: kToolbarHeight),
+              child: badgeList,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeaderStat extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String value;
+
+  const _HeaderStat({
+    super.key,
+    required this.icon,
+    required this.iconColor,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: iconColor, size: 20),
+        const SizedBox(width: 5),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
+            color: Color(0xFF244B43),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -236,79 +297,101 @@ class LencanaScreenState extends State<LencanaScreen> {
 class _BadgeCard extends StatelessWidget {
   final BadgeData data;
   final int pulauId;
+  final bool compact;
   final VoidCallback? onTap;
 
   const _BadgeCard({
     required this.data,
     required this.pulauId,
+    required this.compact,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Opacity(
-      opacity: data.unlocked ? 1.0 : 0.45,
+    final medalSize = compact ? 88.0 : 96.0;
+    return Material(
+      key: ValueKey('badge-card-surface-$pulauId'),
+      color: Colors.white.withValues(alpha: 0.94),
+      elevation: compact ? 2 : 3,
+      shadowColor: Colors.teal[900]!.withValues(alpha: 0.14),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(compact ? 18 : 22),
+        side: BorderSide(color: Colors.teal[100]!),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         key: ValueKey('badge-card-$pulauId'),
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Column(
-          children: [
-            SizedBox(
-              width: 104,
-              height: 104,
-              child: CustomPaint(
-                painter: _MedalPainter(
-                  unlocked: data.unlocked,
-                  rimColor: data.rimColor,
-                  innerColor: data.innerColor,
-                  ribbonColor: data.ribbonColor,
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              data.title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-                color: data.unlocked ? Colors.grey[800] : Colors.grey[600],
-                height: 1.2,
-              ),
-            ),
-            const SizedBox(height: 6),
-            if (data.unlocked)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.amber[100],
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: Colors.amber[600]!),
-                ),
-                child: const Text(
-                  'TERBUKA',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF8A5A00),
+        borderRadius: BorderRadius.circular(compact ? 18 : 22),
+        child: Padding(
+          padding: EdgeInsets.all(compact ? 10 : 12),
+          child: Opacity(
+            opacity: data.unlocked ? 1.0 : 0.55,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: medalSize,
+                  height: medalSize,
+                  child: CustomPaint(
+                    painter: _MedalPainter(
+                      unlocked: data.unlocked,
+                      rimColor: data.rimColor,
+                      innerColor: data.innerColor,
+                      ribbonColor: data.ribbonColor,
+                    ),
                   ),
                 ),
-              )
-            else
-              Text(
-                'Tamatkan Pulau $pulauId untuk membuka',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey[600],
-                  height: 1.2,
+                SizedBox(height: compact ? 4 : 6),
+                Text(
+                  data.title,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: compact ? 11 : 12,
+                    fontWeight: FontWeight.w900,
+                    color: data.unlocked ? Colors.grey[800] : Colors.grey[600],
+                    height: 1.2,
+                  ),
                 ),
-              ),
-          ],
+                SizedBox(height: compact ? 4 : 6),
+                if (data.unlocked)
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: compact ? 10 : 12,
+                      vertical: compact ? 3 : 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.amber[100],
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: Colors.amber[600]!),
+                    ),
+                    child: Text(
+                      'TERBUKA',
+                      style: TextStyle(
+                        fontSize: compact ? 9 : 10,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF8A5A00),
+                      ),
+                    ),
+                  )
+                else
+                  Text(
+                    'Tamatkan Pulau $pulauId untuk membuka',
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: compact ? 9 : 10,
+                      color: Colors.grey[600],
+                      height: 1.2,
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );

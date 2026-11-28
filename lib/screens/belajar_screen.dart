@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'belajar_detail_screen.dart';
 import 'simulasi_screen.dart';
+import 'toko_screen.dart';
 import '../data/materi_data.dart';
 import '../core/storage_service.dart';
 
@@ -14,6 +15,8 @@ class BelajarScreen extends StatefulWidget {
 class _BelajarScreenState extends State<BelajarScreen> {
   final StorageService _storage = StorageService();
   final Map<int, bool> _selesai = {};
+  int _koin = StorageService.defaultKoin;
+  int _nyawa = StorageService.defaultNyawa;
 
   @override
   void initState() {
@@ -22,18 +25,27 @@ class _BelajarScreenState extends State<BelajarScreen> {
   }
 
   Future<void> _loadStatus() async {
+    final koin = await _storage.getKoin();
+    final nyawa = await _storage.getNyawa();
+    final completion = <int, bool>{};
     for (int i = 0; i < MateriData.dataBabBelajar.length; i++) {
       final bab = MateriData.dataBabBelajar[i];
       final key = 'bab_${bab['bab']}_selesai';
-      final done = await _storage.getProgres(key);
-      setState(() => _selesai[i] = done);
+      completion[i] = await _storage.getProgres(key);
     }
+    if (!mounted) return;
+    setState(() {
+      _koin = koin;
+      _nyawa = nyawa;
+      _selesai.addAll(completion);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFDDF5E8),
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -46,43 +58,72 @@ class _BelajarScreenState extends State<BelajarScreen> {
                 color: Colors.teal[900],
                 fontSize: 20)),
         centerTitle: true,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: WalletStatsRow(
+              coinsKey: const ValueKey('belajar-coins'),
+              livesKey: const ValueKey('belajar-lives'),
+              coins: _koin,
+              lives: _nyawa,
+            ),
+          ),
+        ],
       ),
-      body: SafeArea(
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: MateriData.dataBabBelajar.length + 1,
-          itemBuilder: (_, i) {
-            if (i == 0) {
-              return _SimulasiCard(
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const SimulasiScreen()),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            'assets/images/bg_menu_utama.png',
+            key: const ValueKey('belajar-background'),
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Image.asset(
+              'assets/images/bg_menu_utama.jpeg',
+              fit: BoxFit.cover,
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.only(top: kToolbarHeight),
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: MateriData.dataBabBelajar.length + 1,
+                itemBuilder: (_, i) {
+                  if (i == 0) {
+                    return _SimulasiCard(
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const SimulasiScreen()),
+                        );
+                        if (mounted) await _loadStatus();
+                      },
+                    );
+                  }
+                  final babIndex = i - 1;
+                  final bab = MateriData.dataBabBelajar[babIndex];
+                  final items = bab['items'] as List;
+                  final done = _selesai[babIndex] ?? false;
+                  return _BabCard(
+                    bab: bab,
+                    itemCount: items.length,
+                    selesai: done,
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => BelajarDetailScreen(
+                                babIndex: babIndex, bab: bab)),
+                      );
+                      if (mounted) await _loadStatus();
+                    },
                   );
-                  _loadStatus();
                 },
-              );
-            }
-            final babIndex = i - 1;
-            final bab = MateriData.dataBabBelajar[babIndex];
-            final items = bab['items'] as List;
-            final done = _selesai[babIndex] ?? false;
-            return _BabCard(
-              bab: bab,
-              itemCount: items.length,
-              selesai: done,
-              onTap: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) =>
-                          BelajarDetailScreen(babIndex: babIndex, bab: bab)),
-                );
-                _loadStatus();
-              },
-            );
-          },
-        ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

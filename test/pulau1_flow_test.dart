@@ -60,6 +60,16 @@ Future<void> pumpHomeFrames(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 400));
 }
 
+void expectWalletValue(WidgetTester tester, String key, String value) {
+  expect(
+    find.descendant(
+      of: find.byKey(ValueKey(key)),
+      matching: find.text(value),
+    ),
+    findsOneWidget,
+  );
+}
+
 Future<void> openAdventureExam(WidgetTester tester) async {
   late QalbuKidsAdventureGame game;
   await tester.tap(find.text('Pulau 1: Pondasi Islam'));
@@ -130,7 +140,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Peta Petualangan'), findsOneWidget);
-    expect(find.byIcon(Icons.lock), findsNWidgets(5));
+    expect(find.byIcon(Icons.lock), findsNWidgets(4));
     await openAdventureExam(tester);
 
     for (var question = 0; question < 9; question++) {
@@ -187,7 +197,21 @@ void main() {
     await tester.tap(find.byIcon(Icons.arrow_back_rounded));
     await tester.pumpAndSettle();
     expect(find.text('Peta Petualangan'), findsOneWidget);
-    expect(find.byIcon(Icons.lock), findsNWidgets(4));
+    expect(find.byIcon(Icons.lock), findsNWidgets(3));
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('peta-lives')),
+        matching: find.text('14'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('peta-coins')),
+        matching: find.text('50'),
+      ),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byIcon(Icons.arrow_back));
     await pumpHomeFrames(tester);
@@ -212,11 +236,11 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('menu-koleksiku')));
     await pumpHomeFrames(tester);
-    expect(find.text('1/6'), findsOneWidget);
+    expect(find.text('1/5'), findsOneWidget);
     expect(find.text('TERBUKA'), findsOneWidget);
 
     final firstBadge = find.byKey(const ValueKey('badge-card-1'));
-    final firstBadgeOpacity = find.ancestor(
+    final firstBadgeOpacity = find.descendant(
       of: firstBadge,
       matching: find.byType(Opacity),
     );
@@ -362,53 +386,49 @@ void main() {
     expect(await storage.getTotalPoin(), 7);
   });
 
-  testWidgets(
-      'Home refreshes lives after learning and simulation routes return',
+  testWidgets('Home and learning refresh coins and lives after routes return',
       (tester) async {
+    await storage.setKoin(40);
     await storage.setNyawa(1);
     await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
     await pumpHomeFrames(tester);
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('home-lives')),
-        matching: find.text('1'),
-      ),
-      findsOneWidget,
-    );
+    expectWalletValue(tester, 'home-coins', '40');
+    expectWalletValue(tester, 'home-lives', '1');
 
     await tester.tap(find.byKey(const ValueKey('menu-belajar')));
-    await tester.pumpAndSettle();
+    await pumpHomeFrames(tester);
+    expectWalletValue(tester, 'belajar-coins', '40');
+    expectWalletValue(tester, 'belajar-lives', '1');
+
     await tester.tap(find.text('SIMULASI PRAKTIK'));
     await tester.pumpAndSettle();
     await storage.tambahNyawa(2);
+    await storage.tambahKoin(5);
     await tester.tap(find.byIcon(Icons.arrow_back_rounded));
     await tester.pumpAndSettle();
+    expectWalletValue(tester, 'belajar-coins', '45');
+    expectWalletValue(tester, 'belajar-lives', '3');
     await tester.tap(find.byIcon(Icons.arrow_back));
     await pumpHomeFrames(tester);
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('home-lives')),
-        matching: find.text('3'),
-      ),
-      findsOneWidget,
-    );
+    expectWalletValue(tester, 'home-coins', '45');
+    expectWalletValue(tester, 'home-lives', '3');
 
     await tester.tap(find.byKey(const ValueKey('menu-belajar')));
-    await tester.pumpAndSettle();
+    await pumpHomeFrames(tester);
     await storage.tambahNyawa(2);
+    await storage.tambahKoin(7);
     await tester.tap(find.byIcon(Icons.arrow_back));
     await pumpHomeFrames(tester);
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('home-lives')),
-        matching: find.text('5'),
-      ),
-      findsOneWidget,
-    );
+    expectWalletValue(tester, 'home-coins', '52');
+    expectWalletValue(tester, 'home-lives', '5');
   });
 
   testWidgets('badge collection refreshes states and opens earned details',
       (tester) async {
+    await tester.binding.setSurfaceSize(const Size(960, 540));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await storage.setKoin(75);
+    await storage.setNyawa(2);
     await storage.setLencana([true, false, true, false, false, false]);
     final lencanaKey = GlobalKey<LencanaScreenState>();
     await tester.pumpWidget(
@@ -416,8 +436,70 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('2/6'), findsOneWidget);
-    expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
+    final background = tester.widget<Image>(
+      find.byKey(const ValueKey('lencana-background')),
+    );
+    expect(
+      (background.image as AssetImage).assetName,
+      'assets/images/bg_menu_utama.png',
+    );
+    final headerStats = find.byKey(const ValueKey('lencana-header-stats'));
+    expect(headerStats, findsOneWidget);
+    expect(
+      find.descendant(
+        of: headerStats,
+        matching: find.byKey(const ValueKey('lencana-coins')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: headerStats,
+        matching: find.byKey(const ValueKey('lencana-lives')),
+      ),
+      findsOneWidget,
+    );
+    expectWalletValue(tester, 'lencana-coins', '75');
+    expectWalletValue(tester, 'lencana-lives', '2');
+    expect(
+      find.descendant(
+        of: headerStats,
+        matching: find.byKey(const ValueKey('lencana-count')),
+      ),
+      findsOneWidget,
+    );
+    final screenRect = tester.getRect(find.byType(Scaffold));
+    final statsRect = tester.getRect(headerStats);
+    expect(statsRect.center.dx, greaterThan(screenRect.center.dx));
+    expect(statsRect.bottom, lessThanOrEqualTo(kToolbarHeight));
+    final badgeList = find.byKey(const ValueKey('lencana-list'));
+    expect(
+      tester.widget<ListView>(badgeList).scrollDirection,
+      Axis.horizontal,
+    );
+    expect(find.byType(GridView), findsNothing);
+    final cardSurface = tester.widget<Material>(
+      find.byKey(const ValueKey('badge-card-surface-1')),
+    );
+    expect(cardSurface.color, Colors.white.withValues(alpha: 0.94));
+    expect(cardSurface.shape, isA<RoundedRectangleBorder>());
+    final firstBadgeSize =
+        tester.getSize(find.byKey(const ValueKey('badge-card-1')));
+    expect(firstBadgeSize.width, lessThanOrEqualTo(190));
+    expect(firstBadgeSize.height, lessThanOrEqualTo(220));
+    final firstBadgeCenter =
+        tester.getCenter(find.byKey(const ValueKey('badge-card-1')));
+    final secondBadgeCenter =
+        tester.getCenter(find.byKey(const ValueKey('badge-card-2')));
+    final thirdBadgeCenter =
+        tester.getCenter(find.byKey(const ValueKey('badge-card-3')));
+    expect(firstBadgeCenter.dy, closeTo(secondBadgeCenter.dy, 0.001));
+    expect(secondBadgeCenter.dy, closeTo(thirdBadgeCenter.dy, 0.001));
+    expect(firstBadgeCenter.dx, lessThan(secondBadgeCenter.dx));
+    expect(secondBadgeCenter.dx, lessThan(thirdBadgeCenter.dx));
+    expect(find.text('2/5'), findsOneWidget);
+    expect(find.byKey(const ValueKey('badge-card-5')), findsNothing);
+    expect(find.text('❤️'), findsOneWidget);
     expect(find.byIcon(Icons.star), findsNothing);
     expect(find.text('TERBUKA'), findsNWidgets(2));
     expect(find.text('Tamatkan Pulau 2 untuk membuka'), findsOneWidget);
@@ -433,15 +515,42 @@ void main() {
     await tester.pumpAndSettle();
 
     await storage.setLencana([true, true, true, false, false, false]);
+    await storage.setKoin(90);
+    await storage.setNyawa(7);
     await lencanaKey.currentState!.refresh();
     await tester.pumpAndSettle();
 
-    expect(find.text('3/6'), findsOneWidget);
+    expect(find.text('3/5'), findsOneWidget);
+    expectWalletValue(tester, 'lencana-coins', '90');
+    expectWalletValue(tester, 'lencana-lives', '7');
     expect(find.text('TERBUKA'), findsNWidgets(3));
     expect(find.text('Tamatkan Pulau 2 untuk membuka'), findsNothing);
     expect(
       tester.widget<InkWell>(find.byKey(const ValueKey('badge-card-2'))).onTap,
       isNotNull,
     );
+
+    final scrollable = find.descendant(
+      of: badgeList,
+      matching: find.byType(Scrollable),
+    );
+    final scrollPosition = tester.state<ScrollableState>(scrollable).position;
+    expect(scrollPosition.maxScrollExtent, greaterThan(0));
+    await tester.drag(badgeList, const Offset(-500, 0));
+    await tester.pumpAndSettle();
+
+    expect(scrollPosition.pixels, greaterThan(0));
+    final finalBadgeRect =
+        tester.getRect(find.byKey(const ValueKey('badge-card-6')));
+    expect(finalBadgeRect.left, greaterThanOrEqualTo(screenRect.left));
+    expect(finalBadgeRect.right, lessThanOrEqualTo(screenRect.right));
+
+    await storage.setLencana([true, true, true, true, true, true]);
+    await lencanaKey.currentState!.refresh();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('badge-card-6')));
+    await tester.pumpAndSettle();
+    expect(find.text('Penghargaan Pulau 5'), findsOneWidget);
+    expect(find.text('Penghargaan Pulau 6'), findsNothing);
   });
 }

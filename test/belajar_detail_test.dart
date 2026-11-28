@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:qalbukids/core/storage_service.dart';
 import 'package:qalbukids/data/materi_data.dart';
 import 'package:qalbukids/screens/belajar_detail_screen.dart';
+import 'package:qalbukids/screens/belajar_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _ttsChannel = MethodChannel('flutter_tts');
@@ -310,179 +311,51 @@ void main() {
     );
   });
 
-  test('Bab 5 contains ten structured daily prayer cards', () {
-    final items = _itemsForChapter(5);
-
-    expect(items, hasLength(10));
+  test('Bab 5 is temporarily excluded from active learning material', () {
     expect(
-      items.map((item) => item['judulKartu']),
-      [
-        'Doa Sebelum Makan',
-        'Doa Sesudah Makan',
-        'Doa Sebelum Tidur',
-        'Doa Bangun Tidur',
-        'Doa untuk Kedua Orang Tua',
-        'Doa Sebelum Belajar',
-        'Doa Masuk Kamar Mandi (WC)',
-        'Doa Keluar Kamar Mandi (WC)',
-        'Doa Keluar Rumah',
-        'Doa Masuk Masjid',
-      ],
+      MateriData.dataBabBelajar.map((bab) => bab['bab']),
+      [1, 2, 3, 4],
     );
-    expect(
-      items.map((item) => MateriData.getPoinPenjelasan(item).length),
-      List.filled(10, 2),
-    );
-    expect(
-      items.map((item) => item['teksArab']),
-      [
-        'اَللّٰهُمَّ بَارِكْ لَنَا فِيْمَا رَزَقْتَنَا وَقِنَا عَذَابَ النَّارِ',
-        'اَلْحَمْدُ لِلّٰهِ الَّذِيْ اَطْعَمَنَا وَسَقَانَا وَجَعَلَنَا مُسْلِمِيْنَ',
-        'بِسْمِكَ اللّٰهُمَّ اَحْيَا وَبِسْمِكَ اَمُوْتُ',
-        'اَلْحَمْدُ لِلّٰهِ الَّذِيْ اَحْيَانَا بَعْدَ مَا اَمَاتَنَا وَاِلَيْهِ النُّشُوْرُ',
-        'رَبِّ اغْفِرْ لِيْ وَلِوَالِدَيَّ وَارْحَمْهُمَا كَمَا رَبَّيَانِيْ صَغِيْرًا',
-        'رَبِّ زِدْنِيْ عِلْمًا وَارْزُقْنِيْ فَهْمًا',
-        'اَللّٰهُمَّ اِنِّيْ اَعُوْذُ بِكَ مِنَ الْخُبُثِ وَالْخَبَائِثِ',
-        'غُفْرَانَكَ اَلْحَمْدُ لِلّٰهِ الَّذِيْ اَذْهَبَ عَنِّي الْاَذَى وَعَافَانِيْ',
-        'بِسْمِ اللّٰهِ تَوَكَّلْتُ عَلَى اللّٰهِ لَا حَوْلَ وَلَا قُوَّةَ اِلَّا بِاللّٰهِ',
-        'اَللّٰهُمَّ افْتَحْ لِيْ اَبْوَابَ رَحْمَتِكَ',
-      ],
-    );
-    expect(
-      items.map((item) => item['teksLatin']),
-      [
-        "Allaahumma baarik lanaa fiimaa razaqtanaa wa qinaa 'adzaaban naar.",
-        "Alhamdulillaahil ladzii ath'amanaa wa saqaanaa wa ja'alanaa muslimiin.",
-        'Bismikallaahumma ahyaa wa bismika amuut.',
-        "Alhamdulillaahil ladzii ahyaanaa ba'da maa amaatanaa wa ilaihin nusyuur.",
-        'Rabbighfir lii wa liwaalidayya warhamhumaa kamaa rabbayaanii shaghiiraa.',
-        "Rabbi zidnii 'ilmaa warzuqnii fahmaa.",
-        "Allaahumma innii a'uudzu bika minal khubutsi wal khabaa'its.",
-        "Ghufraanaka alhamdulillaahil ladzii adzhaba 'annil adzaa wa 'aafaanii.",
-        "Bismillaahi tawakkaltu 'alallaahi laa haula wa laa quwwata illaa billaah.",
-        'Allaahummaftah lii abwaaba rahmatik.',
-      ],
-    );
-    expect(
-      items.map((item) => item['arti']),
-      [
-        'Ya Allah, berkahilah kami dalam rezeki yang telah Engkau berikan kepada kami dan peliharalah kami dari siksa api neraka.',
-        'Segala puji bagi Allah yang telah memberi kami makan dan minum serta menjadikan kami orang-orang muslim.',
-        'Dengan menyebut nama-Mu ya Allah aku hidup, dan dengan menyebut nama-Mu aku mati.',
-        'Segala puji bagi Allah yang telah menghidupkan kami kembali setelah mematikan kami, dan hanya kepada-Nya kami dibangkitkan.',
-        'Ya Tuhanku, ampunilah dosaku dan dosa kedua orang tuaku, serta sayangilah keduanya sebagaimana mereka menyayangiku di waktu kecil.',
-        'Ya Tuhanku, tambahkanlah ilmu kepadaku dan berilah aku pemahaman yang baik.',
-        'Ya Allah, sesungguhnya aku berlindung kepada-Mu dari godaan setan laki-laki dan setan perempuan.',
-        'Aku memohon ampunan-Mu ya Allah, segala puji bagi Allah yang telah menghilangkan kotoran dariku dan menyehatkanku.',
-        'Dengan menyebut nama Allah aku bertawakal kepada Allah, tiada daya dan kekuatan melainkan dengan pertolongan Allah.',
-        'Ya Allah, bukakanlah untukku pintu-pintu rahmat-Mu.',
-      ],
-    );
-    expect(
-      items.map(_pointTitles),
-      [
-        ['Waktu Membaca', 'Adab Makan'],
-        ['Bersyukur Setelah Kenyang', 'Adab Selesai Makan'],
-        ['Perlindungan Saat Tidur', 'Adab Sebelum Tidur'],
-        ['Syukur di Pagi Hari', 'Adab Bangun Tidur'],
-        ['Bakti Anak Shalih', 'Adab kepada Orang Tua'],
-        ['Memohon Ilmu Bermanfaat', 'Adab Menuntut Ilmu'],
-        ['Adab Masuk Kamar Mandi', 'Larangan di Kamar Mandi'],
-        ['Adab Keluar Kamar Mandi', 'Menjaga Kebersihan'],
-        ['Perlindungan di Perjalanan', 'Adab Keluar Rumah'],
-        ['Adab Masuk Masjid', 'Menjaga Ketenangan'],
-      ],
-    );
-    expect(
-      items.map(
-        (item) => MateriData.getPoinPenjelasan(item)
-            .map((point) => point['isiPenjelasan'])
-            .toList(),
-      ),
-      [
-        [
-          'Dibaca tepat sebelum mulai menyuap makanan atau minuman.',
-          'Mencuci tangan, duduk tenang, memakai tangan kanan, dan tidak mencela makanan.',
-        ],
-        [
-          'Bentuk rasa terima kasih kepada Allah atas nikmat makanan dan minuman.',
-          'Menghabiskan makanan tanpa bersisa, mencuci tangan, dan membantu merapikan piring.',
-        ],
-        [
-          'Menyerahkan diri kepada Allah agar dijaga dari gangguan mimpi buruk.',
-          'Berwudhu terlebih dahulu, membersihkan tempat tidur, dan berbaring miring ke kanan.',
-        ],
-        [
-          'Bersyukur kepada Allah karena masih diberi kesempatan bangun dan beribadah.',
-          'Mengusap wajah, merapikan bantal dan selimut sendiri, lalu segera berwudhu untuk shalat Subuh.',
-        ],
-        [
-          'Doa ini sangat dianjurkan dibaca setiap selesai shalat fardhu 5 waktu.',
-          'Berbicara lembut, mematuhi nasihat baik ayah dan ibu, serta membantu di rumah.',
-        ],
-        [
-          'Dibaca sebelum mulai belajar di sekolah, TPQ, maupun di rumah.',
-          'Duduk rapi, mendengarkan guru atau ustadz dengan tenang, dan rajin mengulang pelajaran.',
-        ],
-        [
-          'Dibaca sebelum masuk ke dalam WC dan melangkah mendahulukan kaki kiri.',
-          "Tidak membawa tulisan ayat Al-Qur'an dan tidak berbicara di dalam kamar mandi.",
-        ],
-        [
-          'Melangkah keluar mendahulukan kaki kanan lalu membaca doa ini.',
-          'Pastikan WC sudah disiram bersih dan air keran ditutup rapat sebelum keluar.',
-        ],
-        [
-          'Allah menjaga langkah anak muslim yang membaca doa ini saat berangkat sekolah atau mengaji.',
-          'Berpamitan dan mencium tangan orang tua serta melangkah dengan kaki kanan.',
-        ],
-        [
-          'Mendahulukan kaki kanan saat masuk ke masjid sambil membaca doa ini.',
-          'Menjaga kebersihan masjid, tidak berlarian, dan menunaikan shalat tahiyatul masjid.',
-        ],
-      ],
-    );
-    for (final item in items) {
-      expect(item['poinPenjelasan'], isA<List>());
-      expect(item['penjelasanAnak'], isNull);
-    }
   });
 
-  testWidgets('Bab 5 navigates to the tenth prayer and opens its second point',
-      (tester) async {
-    await _pumpDetail(tester, MateriData.dataBabBelajar[4]);
+  testWidgets('learning menu shows Bab 1-4 without Bab 5', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    SharedPreferences.setMockInitialValues({
+      StorageService.keyKoin: 75,
+      StorageService.keyNyawa: 2,
+    });
 
-    for (var i = 0; i < 9; i++) {
-      await tester.tap(find.byKey(const ValueKey('next-material-button')));
-      await tester.pumpAndSettle();
-    }
-
-    expect(find.text('Doa Masuk Masjid'), findsOneWidget);
-    expect(find.text('Selesai'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('point-button-1')),
-      200,
-      scrollable: _materialScrollable(),
-    );
-    await tester.tap(find.byKey(const ValueKey('point-button-1')));
+    await tester.pumpWidget(const MaterialApp(home: BelajarScreen()));
     await tester.pumpAndSettle();
 
+    final background = tester.widget<Image>(
+      find.byKey(const ValueKey('belajar-background')),
+    );
+    expect(
+      (background.image as AssetImage).assetName,
+      'assets/images/bg_menu_utama.png',
+    );
     expect(
       find.descendant(
-        of: find.byKey(const ValueKey('character-panel')),
-        matching: find.text('Menjaga Ketenangan'),
+        of: find.byKey(const ValueKey('belajar-coins')),
+        matching: find.text('75'),
       ),
       findsOneWidget,
     );
     expect(
       find.descendant(
-        of: find.byKey(const ValueKey('character-panel')),
-        matching: find.text(
-          'Menjaga kebersihan masjid, tidak berlarian, dan menunaikan shalat tahiyatul masjid.',
-        ),
+        of: find.byKey(const ValueKey('belajar-lives')),
+        matching: find.text('2'),
       ),
       findsOneWidget,
     );
+    for (var bab = 1; bab <= 4; bab++) {
+      expect(find.textContaining('Bab $bab:'), findsOneWidget);
+    }
+    expect(find.textContaining('Bab 5:'), findsNothing);
+    expect(find.textContaining('Doa Harian'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('shows Matan and concise points, then opens Zaid and TTS',

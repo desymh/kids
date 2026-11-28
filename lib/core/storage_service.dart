@@ -14,6 +14,8 @@ class StorageService {
   static const String keyGuruMode = 'guru_mode';
 
   static const int totalIslands = 6;
+  static const List<int> activeIslandIds = ProgressionFSM.activeIslandIds;
+  static final int activeBadgeCount = activeIslandIds.length;
   static const int stagesPerIsland = 4;
   static const int totalBadges = 6;
   static const int defaultNyawa = 5;
@@ -340,7 +342,7 @@ class StorageService {
   }
 
   Future<int> saveBestIslandStars(int pulauId, int value) async {
-    if (pulauId < 1 || pulauId > totalIslands) return 0;
+    if (!activeIslandIds.contains(pulauId)) return 0;
     final current = await getIslandStars(pulauId);
     final stars = value < 0 ? 0 : (value > 3 ? 3 : value);
     final best = stars > current ? stars : current;
@@ -356,7 +358,7 @@ class StorageService {
     required int bintang,
     required int nyawa,
   }) async {
-    if (pulauId < 1 || pulauId > totalIslands) return;
+    if (!activeIslandIds.contains(pulauId)) return;
     await saveBestIslandStars(pulauId, bintang);
     if (jumlahBenar < AdventureFSM.finalExamPassScore || nyawa <= 0) return;
 
@@ -365,16 +367,17 @@ class StorageService {
     if (jumlahBenar == 9) {
       fsm.unlock(ProgressionFSM.badgeKey(pulauId));
     }
-    if (pulauId < totalIslands) {
-      fsm.unlock(ProgressionFSM.islandKey(pulauId + 1));
-      fsm.unlock(ProgressionFSM.stageKey(pulauId + 1, 1));
+    final nextIslandId = ProgressionFSM.nextActiveIslandId(pulauId);
+    if (nextIslandId != null) {
+      fsm.unlock(ProgressionFSM.islandKey(nextIslandId));
+      fsm.unlock(ProgressionFSM.stageKey(nextIslandId, 1));
     }
     await saveFsmStates(fsm.states);
   }
 
   Future<int> recalculateTotalStars() async {
     var total = 0;
-    for (var pulau = 1; pulau <= totalIslands; pulau++) {
+    for (final pulau in activeIslandIds) {
       for (var tahap = 1; tahap <= stagesPerIsland; tahap++) {
         total += await getStageStars(pulau, tahap);
       }
@@ -384,7 +387,7 @@ class StorageService {
   }
 
   Future<Map<String, int>?> getNextStage() async {
-    for (var pulau = 1; pulau <= totalIslands; pulau++) {
+    for (final pulau in activeIslandIds) {
       if (await getLevelState(ProgressionFSM.islandKey(pulau)) ==
           LevelState.locked) {
         continue;
@@ -402,7 +405,7 @@ class StorageService {
 
   Future<int> getCompletedStageCount() async {
     var completed = 0;
-    for (var pulau = 1; pulau <= totalIslands; pulau++) {
+    for (final pulau in activeIslandIds) {
       for (var tahap = 1; tahap <= stagesPerIsland; tahap++) {
         if (await getLevelState(ProgressionFSM.stageKey(pulau, tahap)) ==
             LevelState.completed) {
@@ -420,7 +423,7 @@ class StorageService {
 
   Future<void> bukaSemuaPulauUntukTesting() async {
     final states = await getFsmStates();
-    for (var pulau = 1; pulau <= totalIslands; pulau++) {
+    for (final pulau in activeIslandIds) {
       states[ProgressionFSM.islandKey(pulau)] = LevelState.unlocked;
       for (var tahap = 1; tahap <= stagesPerIsland; tahap++) {
         states[ProgressionFSM.stageKey(pulau, tahap)] = LevelState.unlocked;

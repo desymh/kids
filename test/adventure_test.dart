@@ -54,6 +54,7 @@ Future<AdventureQuizResult> _answerGateQuiz(
   WidgetTester tester, {
   required int correctCount,
   required int initialNyawa,
+  int pulauId = 1,
   void Function()? onResult,
 }) async {
   SharedPreferences.setMockInitialValues(
@@ -72,8 +73,8 @@ Future<AdventureQuizResult> _answerGateQuiz(
                 context: context,
                 barrierDismissible: false,
                 builder: (_) => AdventureQuizDialog(
-                  pulauId: 1,
-                  namaPulau: 'Pondasi Islam',
+                  pulauId: pulauId,
+                  namaPulau: BankSoal.islandName(pulauId),
                   initialNyawa: initialNyawa,
                 ),
               );
@@ -1023,25 +1024,139 @@ void main() {
       expect(pulau4.selectedRoadAsset, 'ground_pulau_4.png');
     });
 
-    testWidgets('Pulau 3 loads its dedicated scenery and road', (tester) async {
-      final game = await _pumpAdventureGame(tester, pulauId: 3);
+    testWidgets(
+        'Pulau 3 keeps its road while grounding actors and collectibles lower',
+        (tester) async {
+      final game = await _pumpAdventureGame(
+        tester,
+        pulauId: 3,
+        obstaclesEnabled: true,
+        treasureQuestionGroups: _treasureGroups(),
+      );
 
       expect(game.selectedSkyAsset, 'bg_pulau_3.png');
       expect(game.selectedRoadAsset, 'ground_pulau_3.png');
+      expect(
+        game.surfaceY,
+        closeTo(
+          game.size.y * QalbuKidsAdventureGame.pulau3SurfaceYRatio,
+          0.001,
+        ),
+      );
+      final genericSurfaceY =
+          game.size.y * QalbuKidsAdventureGame.surfaceYRatio;
+      expect(game.surfaceY, greaterThan(genericSurfaceY));
+      expect(
+        game.surfaceY - genericSurfaceY,
+        closeTo(
+          game.size.y * QalbuKidsAdventureGame.pulau3SurfaceOffsetRatio,
+          0.001,
+        ),
+      );
+      expect(game.player.position.y, closeTo(game.surfaceY, 0.001));
+      expect(game.player.groundY, closeTo(game.surfaceY, 0.001));
+      expect(
+        game.gate.position.y,
+        closeTo(
+          game.surfaceY + QalbuKidsAdventureGame.gateGroundOffset,
+          0.001,
+        ),
+      );
+      expect(game.guardian.position.y, closeTo(game.surfaceY, 0.001));
+      for (final coin in game.coins) {
+        expect(
+          coin.basePosition.y,
+          closeTo(game.surfaceY - coin.heightAboveGround, 0.001),
+        );
+      }
+      for (final chest in game.treasureChests) {
+        expect(
+          chest.basePosition.y,
+          closeTo(game.surfaceY - chest.heightAboveGround, 0.001),
+        );
+      }
+      for (final obstacle in game.obstacles) {
+        expect(obstacle.basePosition.y, closeTo(game.surfaceY, 0.001));
+      }
+      for (final tile in game.backgroundTiles) {
+        expect(tile.position.y, closeTo(game.size.y, 0.001));
+        expect(
+          tile.position.y - tile.size.y,
+          closeTo(game.size.y - game.groundHeight, 0.001),
+        );
+      }
     });
 
-    testWidgets('Pulau 4 loads its dedicated scenery and road', (tester) async {
-      final game = await _pumpAdventureGame(tester, pulauId: 4);
+    testWidgets(
+        'Pulau 4 keeps its road while grounding actors and collectibles lower',
+        (tester) async {
+      final game = await _pumpAdventureGame(
+        tester,
+        pulauId: 4,
+        obstaclesEnabled: true,
+        treasureQuestionGroups: _treasureGroups(),
+      );
 
       expect(game.selectedSkyAsset, 'bg_pulau_4.png');
       expect(game.selectedRoadAsset, 'ground_pulau_4.png');
+      expect(
+        game.surfaceY,
+        closeTo(
+          game.size.y * QalbuKidsAdventureGame.pulau4SurfaceYRatio,
+          0.001,
+        ),
+      );
+      final genericSurfaceY =
+          game.size.y * QalbuKidsAdventureGame.surfaceYRatio;
+      expect(game.surfaceY, greaterThan(genericSurfaceY));
+      expect(
+        game.surfaceY - genericSurfaceY,
+        closeTo(
+          game.size.y * QalbuKidsAdventureGame.pulau4SurfaceOffsetRatio,
+          0.001,
+        ),
+      );
+      expect(game.player.position.y, closeTo(game.surfaceY, 0.001));
+      expect(game.player.groundY, closeTo(game.surfaceY, 0.001));
+      expect(
+        game.gate.position.y,
+        closeTo(
+          game.surfaceY + QalbuKidsAdventureGame.gateGroundOffset,
+          0.001,
+        ),
+      );
+      expect(game.guardian.position.y, closeTo(game.surfaceY, 0.001));
+      for (final coin in game.coins) {
+        expect(
+          coin.basePosition.y,
+          closeTo(game.surfaceY - coin.heightAboveGround, 0.001),
+        );
+      }
+      for (final chest in game.treasureChests) {
+        expect(
+          chest.basePosition.y,
+          closeTo(game.surfaceY - chest.heightAboveGround, 0.001),
+        );
+      }
+      for (final obstacle in game.obstacles) {
+        expect(obstacle.basePosition.y, closeTo(game.surfaceY, 0.001));
+      }
+      for (final tile in game.backgroundTiles) {
+        expect(tile.position.y, closeTo(game.size.y, 0.001));
+        expect(
+          tile.position.y - tile.size.y,
+          closeTo(game.size.y - game.groundHeight, 0.001),
+        );
+      }
     });
 
-    testWidgets('Pulau 2 keeps feet and collectibles on the bridge',
+    testWidgets(
+        'Pulau 2 restores the previous bridge while Zaid stays on its deck',
         (tester) async {
       final game = await _pumpAdventureGame(
         tester,
         pulauId: 2,
+        obstaclesEnabled: true,
         treasureQuestionGroups: [
           [
             {
@@ -1062,10 +1177,17 @@ void main() {
       expect(
         game.surfaceY,
         closeTo(
-          game.size.y -
-              (game.groundHeight * QalbuKidsAdventureGame.surfaceDepthRatio),
+          game.size.y * QalbuKidsAdventureGame.pulau2SurfaceYRatio,
           0.001,
         ),
+      );
+      expect(
+        game.surfaceY,
+        lessThan(game.size.y * QalbuKidsAdventureGame.surfaceYRatio),
+      );
+      expect(
+        game.surfaceY,
+        closeTo(game.size.y - game.groundHeight, 0.001),
       );
       expect(game.player.position.y, closeTo(game.surfaceY, 0.001));
       expect(
@@ -1122,6 +1244,16 @@ void main() {
           lessThan(game.guardian.position.x - 180),
         );
       }
+      for (final obstacle in game.obstacles) {
+        expect(obstacle.basePosition.y, closeTo(game.surfaceY, 0.001));
+      }
+
+      game.jump();
+      for (var i = 0; i < 60 && !game.isOnGround; i++) {
+        game.update(1 / 60);
+      }
+      expect(game.isOnGround, isTrue);
+      expect(game.player.position.y, closeTo(game.surfaceY, 0.001));
 
       final renderer =
           game.skyParallax.parallax!.layers.single.parallaxRenderer;
@@ -1130,8 +1262,23 @@ void main() {
       expect(renderer.alignment, Alignment.bottomLeft);
 
       final tile = game.backgroundTiles.first;
-      expect(tile.sprite!.srcSize.x, QalbuKidsAdventureGame.roadContentWidth);
-      expect(tile.sprite!.srcSize.y, QalbuKidsAdventureGame.roadContentHeight);
+      expect(tile.sprite!.srcPosition.x, 0);
+      expect(
+        tile.sprite!.srcPosition.y,
+        QalbuKidsAdventureGame.roadContentTop,
+      );
+      expect(
+        tile.sprite!.srcSize.x,
+        QalbuKidsAdventureGame.roadContentWidth,
+      );
+      expect(
+        tile.sprite!.srcSize.y,
+        QalbuKidsAdventureGame.roadContentHeight,
+      );
+      expect(
+        tile.position.y - tile.size.y,
+        closeTo(game.surfaceY, 0.001),
+      );
       expect(
         tile.size.y,
         closeTo(game.size.y * QalbuKidsAdventureGame.roadHeightRatio, 0.001),
@@ -1695,6 +1842,30 @@ void main() {
     expect(await StorageService().getNyawa(), 14);
   });
 
+  testWidgets('final exam displays internal Pulau 6 as Pulau 5',
+      (tester) async {
+    final result = await _answerGateQuiz(
+      tester,
+      correctCount: 9,
+      initialNyawa: 5,
+      pulauId: 6,
+      onResult: () {
+        expect(
+          find.text(
+              '🏆 LUAR BIASA! 9/9 Benar Sempurna! Piala Penghargaan Pulau 5 Terbuka!'),
+          findsOneWidget,
+        );
+        expect(
+          find.text(
+              '🏆 LUAR BIASA! 9/9 Benar Sempurna! Piala Penghargaan Pulau 6 Terbuka!'),
+          findsNothing,
+        );
+      },
+    );
+
+    expect(result.perfect, isTrue);
+  });
+
   for (final scenario in [
     (correct: 0, stars: 0, passed: false),
     (correct: 3, stars: 1, passed: false),
@@ -2080,6 +2251,309 @@ void main() {
       expect(timeoutFinder, findsNothing);
       await tester.pumpWidget(const SizedBox.shrink());
     });
+  });
+
+  testWidgets(
+      'adventure map uses larger islands, bubbles, and overlaid Zaid with GO',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(960, 540));
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(960, 540);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    SharedPreferences.setMockInitialValues({
+      StorageService.keyAvatar: 'aisyah',
+    });
+
+    await tester.pumpWidget(const MaterialApp(home: PetaScreen()));
+    await tester.pumpAndSettle();
+
+    final map = find.byKey(const ValueKey('peta-landscape-map'));
+    final mapRect = tester.getRect(map);
+    expect(mapRect.width, greaterThan(mapRect.height));
+    expect(find.byKey(const ValueKey('peta-bubble-path')), findsOneWidget);
+    final mapScroll = find.byType(SingleChildScrollView);
+    expect(mapScroll, findsOneWidget);
+    expect(
+      tester.widget<SingleChildScrollView>(mapScroll).scrollDirection,
+      Axis.horizontal,
+    );
+    expect(find.byIcon(Icons.lock), findsNWidgets(4));
+    expect(find.text('GO'), findsOneWidget);
+    expect(find.text('MULAI'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('peta-pulau-5-artwork')),
+      findsNothing,
+    );
+    expect(find.text('Doa & Adab'), findsNothing);
+    expect(find.text('Pulau 5: Ujian Akhir'), findsOneWidget);
+    expect(find.text('Pulau 6: Ujian Akhir'), findsNothing);
+
+    final activeArtwork = find.byKey(const ValueKey('peta-pulau-1-artwork'));
+    final activeIsland = find.byKey(const ValueKey('peta-pulau-1'));
+    final adventureAction = find.byKey(const ValueKey('peta-adventure-action'));
+    final zaid = find.byKey(const ValueKey('peta-active-avatar'));
+    final go = find.byKey(const ValueKey('peta-go-1'));
+    expect(
+      find.byKey(const ValueKey('peta-adventure-guide')),
+      findsNothing,
+    );
+    expect(adventureAction, findsOneWidget);
+    expect(zaid, findsOneWidget);
+    expect(go, findsOneWidget);
+    expect(
+      find.descendant(of: adventureAction, matching: zaid),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: adventureAction, matching: go),
+      findsOneWidget,
+    );
+    expect(find.descendant(of: activeIsland, matching: zaid), findsNothing);
+    expect(
+      find.descendant(of: activeIsland, matching: find.text('GO')),
+      findsNothing,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Semantics &&
+            widget.properties.label == 'Zaid siap berpetualang',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('peta-adventure-zaid-paint')),
+      findsOneWidget,
+    );
+    expect(tester.widget<InkWell>(go).onTap, isNotNull);
+    final goSize = tester.getSize(go);
+    expect(goSize.width, lessThanOrEqualTo(40));
+    expect(goSize.height, lessThanOrEqualTo(26));
+    final actionRect = tester.getRect(adventureAction);
+    final artworkRect = tester.getRect(activeArtwork);
+    expect(actionRect.overlaps(artworkRect), isTrue);
+    expect(artworkRect.contains(actionRect.topLeft), isTrue);
+    expect(artworkRect.contains(actionRect.bottomRight), isTrue);
+    expect(
+      actionRect.bottom,
+      closeTo(artworkRect.top + artworkRect.height * 0.70, 0.001),
+    );
+    expect(actionRect.center.dx, closeTo(artworkRect.center.dx, 1));
+
+    final regularIslandSize = tester
+        .getSize(find.byKey(const ValueKey('peta-pulau-1-artwork')))
+        .width;
+    final palaceIslandSize = tester
+        .getSize(find.byKey(const ValueKey('peta-pulau-6-artwork')))
+        .width;
+    expect(regularIslandSize, greaterThan(200));
+    expect(palaceIslandSize, greaterThan(regularIslandSize));
+
+    double? previousCenterX;
+    for (final island in StorageService.activeIslandIds) {
+      final artwork = find.byKey(ValueKey('peta-pulau-$island-artwork'));
+      final image = tester.widget<Image>(artwork);
+      expect(
+        (image.image as AssetImage).assetName,
+        startsWith('assets/images/pulau_${island}_'),
+      );
+      final artworkSize = tester.getSize(artwork);
+      final artworkRect = tester.getRect(artwork);
+      expect(artworkSize.width, closeTo(artworkSize.height, 0.001));
+      if (island != 6) {
+        expect(artworkSize.width, closeTo(regularIslandSize, 0.001));
+      }
+      expect(artworkRect.left, greaterThanOrEqualTo(mapRect.left));
+      expect(artworkRect.top, greaterThanOrEqualTo(mapRect.top));
+      expect(artworkRect.right, lessThanOrEqualTo(mapRect.right));
+      expect(artworkRect.bottom, lessThanOrEqualTo(mapRect.bottom));
+      if (previousCenterX != null) {
+        expect(artworkRect.center.dx, greaterThan(previousCenterX));
+      }
+      previousCenterX = artworkRect.center.dx;
+    }
+
+    final scrollable = find.descendant(
+      of: mapScroll,
+      matching: find.byType(Scrollable),
+    );
+    final scrollPosition = tester.state<ScrollableState>(scrollable).position;
+    expect(scrollPosition.maxScrollExtent, greaterThan(0));
+    final initialOffset = scrollPosition.pixels;
+    await tester.drag(mapScroll, const Offset(-350, 0));
+    await tester.pumpAndSettle();
+    expect(scrollPosition.pixels, greaterThan(initialOffset));
+
+    final firstCenter =
+        tester.getCenter(find.byKey(const ValueKey('peta-pulau-1-artwork'))).dy;
+    final secondCenter =
+        tester.getCenter(find.byKey(const ValueKey('peta-pulau-2-artwork'))).dy;
+    final thirdCenter =
+        tester.getCenter(find.byKey(const ValueKey('peta-pulau-3-artwork'))).dy;
+    expect(firstCenter, greaterThan(secondCenter));
+    expect(thirdCenter, greaterThan(secondCenter));
+    expect(
+      find.byKey(const ValueKey('peta-pulau-1-circle')),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('every map island shows stars with earned and locked colors',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(960, 540));
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(960, 540);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    SharedPreferences.setMockInitialValues({
+      ProgressionFSM.islandKey(1): LevelState.completed.name,
+      '${ProgressionFSM.stageKey(1, StorageService.stagesPerIsland)}_bintang':
+          2,
+      ProgressionFSM.islandKey(2): LevelState.unlocked.name,
+      '${ProgressionFSM.stageKey(3, StorageService.stagesPerIsland)}_bintang':
+          3,
+    });
+
+    await tester.pumpWidget(const MaterialApp(home: PetaScreen()));
+    await tester.pumpAndSettle();
+
+    for (final island in StorageService.activeIslandIds) {
+      final stars = find.byKey(ValueKey('peta-pulau-$island-stars'));
+      expect(stars, findsOneWidget);
+      final starIcons = tester.widgetList<Icon>(
+        find.descendant(of: stars, matching: find.byIcon(Icons.star)),
+      );
+      expect(starIcons, hasLength(3));
+      final expectedColors = island == 1
+          ? [Colors.amber, Colors.amber, Colors.grey[300]]
+          : [Colors.grey[300], Colors.grey[300], Colors.grey[300]];
+      expect(
+        starIcons.map((icon) => icon.color).toList(),
+        expectedColors,
+        reason:
+            'Pulau $island should show its earned stars or light-gray stars',
+      );
+      final starsRect = tester.getRect(stars);
+      final artworkRect = tester.getRect(
+        find.byKey(ValueKey('peta-pulau-$island-artwork')),
+      );
+      expect(starsRect.top, greaterThanOrEqualTo(artworkRect.bottom));
+    }
+    expect(find.byIcon(Icons.star), findsNWidgets(15));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Zaid and GO overlay only the active upper-route island',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 360));
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(800, 360);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    SharedPreferences.setMockInitialValues({
+      ProgressionFSM.islandKey(1): LevelState.completed.name,
+      ProgressionFSM.islandKey(2): LevelState.unlocked.name,
+    });
+
+    await tester.pumpWidget(const MaterialApp(home: PetaScreen()));
+    await tester.pumpAndSettle();
+
+    final actionRect = tester.getRect(
+      find.byKey(const ValueKey('peta-adventure-action')),
+    );
+    final activeArtworkRect = tester.getRect(
+      find.byKey(const ValueKey('peta-pulau-2-artwork')),
+    );
+    expect(
+      find.byKey(const ValueKey('peta-adventure-guide')),
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey('peta-go-2')), findsOneWidget);
+    expect(actionRect.overlaps(activeArtworkRect), isTrue);
+    expect(
+      actionRect.bottom,
+      closeTo(activeArtworkRect.top + activeArtworkRect.height * 0.70, 0.001),
+    );
+    for (final island in StorageService.activeIslandIds) {
+      if (island == 2) continue;
+      final artworkRect = tester.getRect(
+        find.byKey(ValueKey('peta-pulau-$island-artwork')),
+      );
+      expect(
+        actionRect.overlaps(artworkRect),
+        isFalse,
+        reason: 'Zaid and GO should only overlay active island 2',
+      );
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('palace Zaid and GO are contained within the largest island',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 360));
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(800, 360);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    SharedPreferences.setMockInitialValues({
+      for (final island
+          in StorageService.activeIslandIds.where((island) => island != 6))
+        ProgressionFSM.islandKey(island): LevelState.completed.name,
+      ProgressionFSM.islandKey(6): LevelState.unlocked.name,
+    });
+
+    await tester.pumpWidget(const MaterialApp(home: PetaScreen()));
+    await tester.pumpAndSettle();
+
+    final actionRect = tester.getRect(
+      find.byKey(const ValueKey('peta-adventure-action')),
+    );
+    final artworkRect = tester.getRect(
+      find.byKey(const ValueKey('peta-pulau-6-artwork')),
+    );
+    expect(find.byKey(const ValueKey('peta-go-6')), findsOneWidget);
+    expect(actionRect.overlaps(artworkRect), isTrue);
+    expect(artworkRect.contains(actionRect.topLeft), isTrue);
+    expect(artworkRect.contains(actionRect.bottomRight), isTrue);
+    expect(
+      actionRect.bottom,
+      closeTo(artworkRect.top + artworkRect.height * 0.70, 0.001),
+    );
+    expect(actionRect.center.dx, closeTo(artworkRect.center.dx, 1));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('map GO button opens the active adventure island',
+      (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(960, 540);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+            SystemChannels.platform, (call) async => null);
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+    SharedPreferences.setMockInitialValues({});
+
+    await tester.pumpWidget(const MaterialApp(home: PetaScreen()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('peta-go-1')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final adventure =
+        tester.widget<AdventureScreen>(find.byType(AdventureScreen));
+    expect(adventure.pulauId, 1);
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   testWidgets('choosing an unlocked map island opens AdventureScreen',

@@ -83,6 +83,13 @@ class QalbuKidsAdventureGame extends FlameGame {
   static const double roadContentTop = 146;
   static const double roadContentWidth = 677;
   static const double roadContentHeight = 149;
+  static const double pulau2SurfaceYRatio = 1 - groundHeightRatio;
+  static const double pulau3SurfaceOffsetRatio = 0.025;
+  static const double pulau3SurfaceYRatio =
+      surfaceYRatio + pulau3SurfaceOffsetRatio;
+  static const double pulau4SurfaceOffsetRatio = 0.025;
+  static const double pulau4SurfaceYRatio =
+      surfaceYRatio + pulau4SurfaceOffsetRatio;
 
   // Kept for compatibility with existing adventure visual tests.
   static const int backgroundTileCount = 6;
@@ -200,7 +207,13 @@ class QalbuKidsAdventureGame extends FlameGame {
 
   double get _screenHeight => size.y > 0 ? size.y : 540;
   double get groundHeight => _screenHeight * groundHeightRatio;
-  double get surfaceY => _screenHeight - (groundHeight * surfaceDepthRatio);
+  double get surfaceY {
+    if (pulauId == 2) return _screenHeight * pulau2SurfaceYRatio;
+    if (pulauId == 3) return _screenHeight * pulau3SurfaceYRatio;
+    if (pulauId == 4) return _screenHeight * pulau4SurfaceYRatio;
+    return _screenHeight * surfaceYRatio;
+  }
+
   double get groundY => surfaceY;
 
   @override

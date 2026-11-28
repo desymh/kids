@@ -1,4 +1,5 @@
 import '../core/fisher_yates_shuffle.dart';
+import '../core/fsm_controller.dart';
 
 class BankSoal {
   static const List<String> islandNames = [
@@ -1071,10 +1072,14 @@ class BankSoal {
   ];
 
   static List<Map<String, dynamic>> getSoalPulau(int pulauId) {
-    if (pulauId < 1 || pulauId > 6) return [];
+    if (!ProgressionFSM.activeIslandIds.contains(pulauId)) return [];
     if (pulauId == 6) {
-      final combined =
-          bank.where((question) => question['pulauId'] != 6).toList();
+      final sourceIslandIds = ProgressionFSM.activeIslandIds
+          .where((islandId) => islandId != 6)
+          .toSet();
+      final combined = bank
+          .where((question) => sourceIslandIds.contains(question['pulauId']))
+          .toList();
       return FisherYatesShuffler.acakDaftarSoal(combined).take(8).toList();
     }
     final filtered =
@@ -1083,14 +1088,16 @@ class BankSoal {
   }
 
   static List<Map<String, dynamic>> getSoalPetualangan(int pulauId) {
-    if (pulauId < 1 || pulauId > 6) return [];
+    if (!ProgressionFSM.activeIslandIds.contains(pulauId)) return [];
     final filtered =
         bank.where((question) => question['pulauId'] == pulauId).toList();
     return FisherYatesShuffler.acakDaftarSoal(filtered).take(20).toList();
   }
 
   static List<Map<String, dynamic>> getSoalTahap(int pulauId, int tahap) {
-    if (pulauId < 1 || pulauId > 6 || tahap < 1 || tahap > 4) {
+    if (!ProgressionFSM.activeIslandIds.contains(pulauId) ||
+        tahap < 1 ||
+        tahap > 4) {
       return [];
     }
     if (pulauId == 6) {

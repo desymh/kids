@@ -18,6 +18,18 @@ class StageProgressionResult {
 
 class ProgressionFSM {
   static const int passScore = 60;
+  static const List<int> activeIslandIds = [1, 2, 3, 4, 6];
+
+  static int displayIslandNumber(int pulauId) {
+    final index = activeIslandIds.indexOf(pulauId);
+    return index >= 0 ? index + 1 : pulauId;
+  }
+
+  static int? nextActiveIslandId(int pulauId) {
+    final index = activeIslandIds.indexOf(pulauId);
+    if (index < 0 || index >= activeIslandIds.length - 1) return null;
+    return activeIslandIds[index + 1];
+  }
 
   final Map<String, LevelState> _states;
 
@@ -71,7 +83,7 @@ class ProgressionFSM {
     int totalIslands = 6,
   }) {
     final currentKey = stageKey(pulauId, tahap);
-    if (pulauId < 1 ||
+    if (!activeIslandIds.contains(pulauId) ||
         pulauId > totalIslands ||
         tahap < 1 ||
         tahap > 4 ||
@@ -100,9 +112,10 @@ class ProgressionFSM {
     unlock(badgeKey);
 
     var nextIslandUnlocked = false;
-    if (pulauId < totalIslands) {
-      final nextIslandKey = islandKey(pulauId + 1);
-      final nextStageKey = stageKey(pulauId + 1, 1);
+    final nextIslandId = nextActiveIslandId(pulauId);
+    if (nextIslandId != null && nextIslandId <= totalIslands) {
+      final nextIslandKey = islandKey(nextIslandId);
+      final nextStageKey = stageKey(nextIslandId, 1);
       nextIslandUnlocked = getState(nextIslandKey) == LevelState.locked;
       unlock(nextIslandKey);
       unlock(nextStageKey);

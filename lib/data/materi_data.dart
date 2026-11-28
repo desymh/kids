@@ -1,5 +1,5 @@
 class MateriData {
-  static final List<Map<String, dynamic>> dataBabBelajar = [
+  static final List<Map<String, dynamic>> _allBabBelajar = [
     {
       'bab': 1,
       'judul': 'Bab 1: Pondasi Islam',
@@ -672,6 +672,9 @@ class MateriData {
       ],
     },
   ];
+
+  static final List<Map<String, dynamic>> dataBabBelajar =
+      List.unmodifiable(_allBabBelajar.where((bab) => bab['bab'] != 5));
 
   static List<Map<String, dynamic>> getPoinPenjelasan(
     Map<String, dynamic> item,

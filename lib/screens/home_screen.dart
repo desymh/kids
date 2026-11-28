@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../core/storage_service.dart';
@@ -44,7 +46,9 @@ class _HomeScreenState extends State<HomeScreen> {
           : 'assets/images/avatar_zaid.png';
       koin = savedKoin;
       nyawa = savedNyawa;
-      jumlahLencanaTerbuka = badges.where((unlocked) => unlocked).length;
+      jumlahLencanaTerbuka = StorageService.activeIslandIds
+          .where((pulauId) => badges[pulauId - 1])
+          .length;
     });
   }
 
@@ -101,20 +105,34 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFE6F5EE),
-      body: SafeArea(
-        bottom: false,
-        child: _HomeContent(
-          nama: nama,
-          avatarAsset: avatarAsset,
-          koin: koin,
-          nyawa: nyawa,
-          onAvatarTap: _openProfileSummary,
-          onSettingsTap: () => _open(const SettingsScreen()),
-          onBelajarTap: () => _open(const BelajarScreen()),
-          onPetaTap: () => _open(const PetaScreen()),
-          onLencanaTap: () => _open(const LencanaScreen()),
-          onTokoTap: () => _open(const TokoScreen()),
-        ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            'assets/images/bg_menu_utama.png',
+            key: const ValueKey('home-background'),
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Image.asset(
+              'assets/images/bg_menu_utama.jpeg',
+              fit: BoxFit.cover,
+            ),
+          ),
+          SafeArea(
+            bottom: false,
+            child: _HomeContent(
+              nama: nama,
+              avatarAsset: avatarAsset,
+              koin: koin,
+              nyawa: nyawa,
+              onAvatarTap: _openProfileSummary,
+              onSettingsTap: () => _open(const SettingsScreen()),
+              onBelajarTap: () => _open(const BelajarScreen()),
+              onPetaTap: () => _open(const PetaScreen()),
+              onLencanaTap: () => _open(const LencanaScreen()),
+              onTokoTap: () => _open(const TokoScreen()),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -147,138 +165,126 @@ class _HomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Image.asset(
-          'assets/images/bg_menu_utama.png',
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Image.asset(
-            'assets/images/bg_menu_utama.jpeg',
-            fit: BoxFit.cover,
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
-          child: Column(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+      child: Column(
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: _ProfileCapsule(
-                        key: const ValueKey('home-profile-capsule'),
-                        nama: nama,
-                        avatarAsset: avatarAsset,
-                        onTap: onAvatarTap,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 4,
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _StatCapsule(
-                              key: const ValueKey('home-coins'),
-                              symbol: '🪙',
-                              value: '$koin',
-                              color: const Color(0xFFB7791F),
-                            ),
-                            const SizedBox(width: 8),
-                            _StatCapsule(
-                              key: const ValueKey('home-lives'),
-                              symbol: '❤️',
-                              value: '$nyawa',
-                              color: const Color(0xFFD64545),
-                            ),
-                            const SizedBox(width: 8),
-                            _CircleButton(
-                              key: const ValueKey('home-profile-settings'),
-                              icon: Icons.settings_rounded,
-                              tooltip: 'Profil & Pengaturan',
-                              onTap: onSettingsTap,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
               Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final iconHeight =
-                        (MediaQuery.of(context).size.height * 0.40)
-                            .clamp(0.0, constraints.maxHeight);
-                    final iconWidth = constraints.maxWidth * 0.22;
-
-                    Widget menuIcon({
-                      required String id,
-                      required String asset,
-                      required String label,
-                      required VoidCallback onTap,
-                    }) {
-                      return SizedBox(
-                        width: iconWidth,
-                        height: iconHeight,
-                        child: _FloatingMenuIcon(
-                          key: ValueKey('menu-$id'),
-                          asset: asset,
-                          label: label,
-                          onTap: onTap,
+                flex: 3,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: _ProfileCapsule(
+                    key: const ValueKey('home-profile-capsule'),
+                    nama: nama,
+                    avatarAsset: avatarAsset,
+                    onTap: onAvatarTap,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 4,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        WalletStatsRow(
+                          coinsKey: const ValueKey('home-coins'),
+                          livesKey: const ValueKey('home-lives'),
+                          coins: koin,
+                          lives: nyawa,
                         ),
-                      );
-                    }
-
-                    return Center(
-                      child: Row(
-                        key: const ValueKey('home-menu-grid'),
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          menuIcon(
-                            id: 'belajar',
-                            asset: 'assets/images/icon_menu_belajar.png',
-                            label: 'Belajar',
-                            onTap: onBelajarTap,
-                          ),
-                          menuIcon(
-                            id: 'bermain',
-                            asset: 'assets/images/icon_menu_bermain.png',
-                            label: 'Bermain',
-                            onTap: onPetaTap,
-                          ),
-                          menuIcon(
-                            id: 'koleksiku',
-                            asset: 'assets/images/icon_menu_koleksiku.png',
-                            label: 'Koleksiku',
-                            onTap: onLencanaTap,
-                          ),
-                          menuIcon(
-                            id: 'toko',
-                            asset: 'assets/images/icon_menu_toko.png',
-                            label: 'Toko',
-                            onTap: onTokoTap,
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+                        const SizedBox(width: 8),
+                        _CircleButton(
+                          key: const ValueKey('home-profile-settings'),
+                          icon: Icons.settings_rounded,
+                          tooltip: 'Profil & Pengaturan',
+                          onTap: onSettingsTap,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
-        ),
-      ],
+          const SizedBox(height: 14),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final iconHeight = (MediaQuery.of(context).size.height * 0.30)
+                    .clamp(0.0, constraints.maxHeight);
+                final iconWidth = constraints.maxWidth * 0.19;
+
+                Widget menuIcon({
+                  required String id,
+                  required String asset,
+                  required String label,
+                  required double phase,
+                  required VoidCallback onTap,
+                }) {
+                  return SizedBox(
+                    width: iconWidth,
+                    height: iconHeight,
+                    child: _FloatingMenuIcon(
+                      key: ValueKey('menu-$id'),
+                      asset: asset,
+                      label: label,
+                      phase: phase,
+                      onTap: onTap,
+                    ),
+                  );
+                }
+
+                return Center(
+                  child: SizedBox(
+                    width: constraints.maxWidth * 0.94,
+                    child: Row(
+                      key: const ValueKey('home-menu-grid'),
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        menuIcon(
+                          id: 'belajar',
+                          asset: 'assets/images/icon_menu_belajar.png',
+                          label: 'Belajar',
+                          phase: 0,
+                          onTap: onBelajarTap,
+                        ),
+                        menuIcon(
+                          id: 'bermain',
+                          asset: 'assets/images/icon_menu_bermain.png',
+                          label: 'Bermain',
+                          phase: 0.25,
+                          onTap: onPetaTap,
+                        ),
+                        menuIcon(
+                          id: 'koleksiku',
+                          asset: 'assets/images/icon_menu_koleksiku.png',
+                          label: 'Koleksiku',
+                          phase: 0.5,
+                          onTap: onLencanaTap,
+                        ),
+                        menuIcon(
+                          id: 'toko',
+                          asset: 'assets/images/icon_menu_toko.png',
+                          label: 'Toko',
+                          phase: 0.75,
+                          onTap: onTokoTap,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -368,47 +374,6 @@ class _ProfileCapsule extends StatelessWidget {
   }
 }
 
-class _StatCapsule extends StatelessWidget {
-  final String symbol;
-  final String value;
-  final Color color;
-
-  const _StatCapsule(
-      {super.key,
-      required this.symbol,
-      required this.value,
-      required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(999),
-        boxShadow: [
-          BoxShadow(
-              color: color.withValues(alpha: 0.16),
-              blurRadius: 12,
-              offset: const Offset(0, 5))
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(symbol, style: const TextStyle(fontSize: 18)),
-          const SizedBox(width: 6),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF244B43))),
-        ],
-      ),
-    );
-  }
-}
-
 class _CircleButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
@@ -444,12 +409,14 @@ class _CircleButton extends StatelessWidget {
 class _FloatingMenuIcon extends StatefulWidget {
   final String asset;
   final String label;
+  final double phase;
   final VoidCallback onTap;
 
   const _FloatingMenuIcon({
     super.key,
     required this.asset,
     required this.label,
+    required this.phase,
     required this.onTap,
   });
 
@@ -457,8 +424,25 @@ class _FloatingMenuIcon extends StatefulWidget {
   State<_FloatingMenuIcon> createState() => _FloatingMenuIconState();
 }
 
-class _FloatingMenuIconState extends State<_FloatingMenuIcon> {
+class _FloatingMenuIconState extends State<_FloatingMenuIcon>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _floatController;
   bool _pressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _floatController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _floatController.dispose();
+    super.dispose();
+  }
 
   void _setPressed(bool value) {
     if (_pressed == value) return;
@@ -476,20 +460,32 @@ class _FloatingMenuIconState extends State<_FloatingMenuIcon> {
         onTapUp: (_) => _setPressed(false),
         onTapCancel: () => _setPressed(false),
         onTap: widget.onTap,
-        child: AnimatedScale(
-          scale: _pressed ? 0.90 : 1,
-          duration: _pressed
-              ? const Duration(milliseconds: 70)
-              : const Duration(milliseconds: 240),
-          curve: Curves.elasticOut,
-          child: Image.asset(
-            widget.asset,
-            fit: BoxFit.contain,
-            excludeFromSemantics: true,
-            errorBuilder: (_, __, ___) => const Icon(
-              Icons.menu_rounded,
-              size: 72,
-              color: Color(0xFF244B43),
+        child: AnimatedBuilder(
+          animation: _floatController,
+          builder: (context, child) {
+            final wave = math.sin(
+              (_floatController.value + widget.phase) * 2 * math.pi,
+            );
+            return Transform.translate(
+              offset: Offset(0, wave * 7),
+              child: child,
+            );
+          },
+          child: AnimatedScale(
+            scale: _pressed ? 0.90 : 1,
+            duration: _pressed
+                ? const Duration(milliseconds: 70)
+                : const Duration(milliseconds: 240),
+            curve: Curves.elasticOut,
+            child: Image.asset(
+              widget.asset,
+              fit: BoxFit.contain,
+              excludeFromSemantics: true,
+              errorBuilder: (_, __, ___) => const Icon(
+                Icons.menu_rounded,
+                size: 72,
+                color: Color(0xFF244B43),
+              ),
             ),
           ),
         ),

@@ -493,7 +493,7 @@ class ProfileSummaryTab extends StatelessWidget {
                       _SummaryStat(
                         symbol: '🏆',
                         value:
-                            '$jumlahLencanaTerbuka / ${StorageService.totalBadges}',
+                            '$jumlahLencanaTerbuka / ${StorageService.activeBadgeCount}',
                         label: 'Lencana',
                       ),
                     ],
